@@ -5,6 +5,11 @@ workspace you supply. It uses the existing SDK, tools, agent loop, context
 management, and resource discovery. There is no terminal UI or HTTP server.
 The wrapper needs Python 3.10+ and uses only its standard library.
 
+For an interactive walkthrough, open [the Python notebook](../../../notebooks/pi_harness.ipynb).
+It configures the API key with masked input, lets you choose a workspace and model,
+and displays the response, usage, trajectory, and generated files. Its API cells
+are unexecuted in the repository.
+
 ## Prepare the checkout
 
 With Node.js 22.19+ installed, run once from the Pi repository root:
