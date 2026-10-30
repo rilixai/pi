@@ -55,7 +55,7 @@ def main() -> None:
             ),
             cwd=workspace,
             model=args.model,
-            append_system_prompt="Write the report in French.",
+            append_system_prompt="Write the report in English.",
             timeout=args.timeout,
         )
     except PiRunError as error:
