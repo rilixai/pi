@@ -4,6 +4,8 @@
 
 Use the SDK for in-process TypeScript integration. For a language-independent or isolated subprocess, see [CLI Integration](cli-integration.md).
 
+To call the current source checkout from Python in a workspace of your choice, see [Python Harness](python-harness.md).
+
 ```typescript
 import { createAgentSession } from "@earendil-works/pi-coding-agent";
 

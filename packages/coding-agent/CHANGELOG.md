@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added a source-checkout Python harness for running Pi in an existing workspace with OpenAI API authentication, additional skills and system instructions, structured results, and an optional subprocess timeout. See [Python Harness](docs/python-harness.md).
 - Extension packages can now show their changelog after an update. Pi reads `pi.changelogPath` from the package's `package.json`, or `CHANGELOG.md` in the package root, and on the next fresh launch shows entries newer than the last seen version under "Extension Updates". The `collapseChangelog` setting condenses this to one line per package ([#5958](https://github.com/earendil-works/pi/issues/5958), [#8790](https://github.com/earendil-works/pi/pull/8790))
 - `pi.exec()` accepts a `maxBuffer` option that limits stdout and stderr combined, and its result has a `truncated` field that is true when output exceeded the limit ([#11360](https://github.com/earendil-works/pi/issues/11360))
 - Device-code login (for example GitHub Copilot) now opens the verification page and copies the code when you press Enter. Providers can turn either action off with `openBrowserOnConfirm: false` or `copyCodeOnConfirm: false` ([#9282](https://github.com/earendil-works/pi/issues/9282), [#9301](https://github.com/earendil-works/pi/pull/9301))
