@@ -34,6 +34,23 @@ images, PDF, DOCX, SQLite, and notebooks, without supplying hidden search-refere
 folders. This is a pilot cohort, **not the 65-task JobBench leaderboard result**.
 Do not use the two held-out cases to select candidate changes.
 
+## Task instructions and reference files
+
+`TASK_INSTRUCTIONS.txt` is a dataset file, not a tracked file in this Pi repository.
+For example, the pinned original for the
+first train task is available on
+[Hugging Face](https://huggingface.co/datasets/JobBench/job-bench/resolve/d43a66575635da0d3f6cb9a20976dc1a60f3ffc9/dataset/data_entry_keyers/task1/task_folder/TASK_INSTRUCTIONS.txt).
+
+The loader reads its contents into the Beaker row's `input.instructions` field.
+During case preparation it downloads the original file and the other files under
+that task's `task_folder/`, verifies their sizes and hashes, and attaches them as
+case files. The adapter copies those files into the task workspace, exposed to
+Pi at `/workspace/task_folder/TASK_INSTRUCTIONS.txt` and adjacent reference paths.
+The instructions are also included in Pi's input prompt. `RUBRICS.json` stays with
+the evaluator and is not mounted in Pi's container. Local evaluation retains the
+downloaded instructions at `<run-dir>/workspace/task_folder/TASK_INSTRUCTIONS.txt`;
+hosted workspaces are temporary.
+
 ## Prepare the local checkout
 
 Use Linux with Python 3.12+, a local Docker daemon, and `uv`. On macOS, run
@@ -84,13 +101,16 @@ evaluation error, not a score of zero. `JOBBENCH_CALC_NATIVE=1` is only suitable
 inside the exact upstream calculation image; it is not a generic LibreOffice
 fallback.
 
-Hosted setup installs `docker.io` through `apt_install`. Before loading cases,
+Hosted setup installs `docker.io` and `util-linux` through `apt_install`. Before loading cases,
 `JobBenchSetup.prepare_run` connects to Docker or starts an attempt-owned daemon
 inside Beaker's Modal VM, builds the unchanged upstream calculator Dockerfile,
 and verifies formula recalculation with the official worker. It also prepares
-the seed Pi image before rollouts; modified candidates get their own image. Startup/build
+the seed Pi image before rollouts, resolving the seed checkout from the integration
+module rather than the process working directory. Modified candidates get their own image. Startup/build
 failures therefore stop setup before paid rollouts. The daemon receives no
-provider or Beaker API credentials and is stopped when the attempt closes.
+provider or Beaker API credentials and is stopped when the attempt closes. Its
+mount namespace is private, so Docker's internal mounts do not prevent removal
+of the attempt's temporary files. An externally managed daemon is left untouched.
 The trusted image build uses host networking; workbook calculation retains the
 official read-only, offline container restrictions. Local structural smoke
 does not start Docker, and local scoring still uses the Docker setup above.

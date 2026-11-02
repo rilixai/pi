@@ -64,9 +64,14 @@ async def calculator_runtime() -> AsyncIterator[None]:
                         raise RuntimeError("JobBench scoring needs a running Docker daemon in a Modal VM sandbox")
                     if env.get("DOCKER_HOST") or env.get("DOCKER_CONTEXT"):
                         raise RuntimeError("The configured JobBench Docker daemon is unavailable")
+                    if shutil.which("unshare") is None:
+                        raise RuntimeError("Hosted JobBench Docker startup requires util-linux (unshare)")
                     # A private data root and no bridge/iptables changes keep
                     # calculator startup independent of Beaker's provider proxy.
                     daemon = await asyncio.create_subprocess_exec(
+                        # Docker's persistent exec/netns bind mount must not leak
+                        # into the evaluator's namespace and block temp cleanup.
+                        "unshare", "--mount", "--propagation", "private",
                         "dockerd", "--host=unix:///var/run/docker.sock",
                         f"--data-root={directory / 'data'}", f"--exec-root={directory / 'exec'}",
                         f"--pidfile={directory / 'dockerd.pid'}", "--storage-driver=vfs",

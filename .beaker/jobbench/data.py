@@ -145,7 +145,9 @@ class JobBenchSetup(RunSetup[TaskRow]):
         async with calculator_runtime():
             if os.environ.get("BEAKER_RUN_ID"):
                 with tempfile.TemporaryDirectory(prefix="pi-jobbench-preflight-") as temporary:
-                    await prepare_image(Path.cwd(), run_dir=Path(temporary))
+                    # Setup may run from /. Only this seed preflight uses the
+                    # integration location; rollouts still use their candidate cwd.
+                    await prepare_image(Path(__file__).resolve().parents[2], run_dir=Path(temporary))
             yield {"repository": RepositoryRunSetupResult()}
 
     async def load_cases(self, row: TaskRow, *, runtime: SetupRuntime) -> AsyncIterator[Case]:

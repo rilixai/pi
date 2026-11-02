@@ -18,4 +18,5 @@ integrations:
     environment_base: debian_slim:3.12
     apt_install:
       - docker.io
+      - util-linux
 default_integration: pi-jobbench
