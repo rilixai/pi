@@ -51,6 +51,7 @@ def restore_submission(files: list[dict[str, Any]], directory: Path) -> None:
 
 def score_submission(
     expected: Expected, files: list[dict[str, Any]], *, report_dir: Path | None = None,
+    protocol: dict[str, Any] | None = None,
 ) -> CaseScore:
     """Keep official rubric weighting; treat judge failures as failures, never zeros."""
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-score-") as temporary:
@@ -63,11 +64,11 @@ def score_submission(
             images = official_judge.collect_image_attachments(directory)
             target = scoring_inference_target()
             if target is None:
-                api_base = "https://api.x.ai/v1"
-                api_key = os.environ.get("JUDGE_API_KEY", "")
-                model = "grok-4.7"
+                api_base = os.environ.get("JUDGE_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/openai"
+                api_key = os.environ.get("JUDGE_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
+                model = PILOT["scorer_model"].split(":", 1)[1]
                 if not api_key.strip():
-                    raise RuntimeError("JUDGE_API_KEY is required for local Grok scoring")
+                    raise RuntimeError("JUDGE_API_KEY or GEMINI_API_KEY is required for local Gemini scoring")
             else:
                 if target.model != PILOT["scorer_model"]:
                     raise ValueError(f"The scorer must remain {PILOT['scorer_model']}")
@@ -112,7 +113,7 @@ def score_submission(
         if report_dir is not None:
             report_dir.mkdir(parents=True, exist_ok=True)
             (report_dir / "score.json").write_text(json.dumps({
-                "protocol": PILOT, "scorecard": scorecard, "rubrics": rubric_results,
+                "protocol": PILOT if protocol is None else protocol, "scorecard": scorecard, "rubrics": rubric_results,
             }, indent=2), encoding="utf-8")
         checks = tuple(
             Check(

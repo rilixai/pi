@@ -20,8 +20,22 @@ from .runtime import NODE, log_tail, prepare_checkout, stop_process
 MAX_DELIVERABLE_BYTES = 4 * 1024 * 1024
 
 
-async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) -> dict[str, Any]:
-    """Run the fixed gpt-6-luna configuration and retain files outside the source tree."""
+def rollout_model(model: str | None = None) -> str:
+    """Resolve an OpenAI API model ID from the launch override or pilot default."""
+    selected = PILOT["agent_model"] if model is None else model
+    provider, separator, model_id = selected.strip().partition(":")
+    if not separator:
+        provider, model_id = "openai", provider
+    if provider != "openai" or not model_id.strip():
+        raise ValueError("Pi JobBench rollouts require an OpenAI model ID, optionally prefixed with openai:")
+    return model_id.strip()
+
+
+async def run_task(
+    task: TaskInput, *, inputs: Path, root: Path, run_dir: Path, model: str | None = None,
+) -> dict[str, Any]:
+    """Run the selected OpenAI model and retain files outside the source tree."""
+    model_id = rollout_model(model)
     if os.name != "posix":
         raise RuntimeError("The local JobBench evaluator currently requires Linux or macOS")
     if not os.environ.get("OPENAI_API_KEY", "").strip():
@@ -56,7 +70,7 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
         "use appropriate tools or write code to inspect them. Explain conflicting sources.\n\n"
         "Task instructions:\n" + task.instructions
     )
-    request = {"cwd": str(workspace), "prompt": prompt, "model": "gpt-6-luna"}
+    request = {"cwd": str(workspace), "prompt": prompt, "model": model_id}
     with (run_dir / "pi.stderr.log").open("wb") as stderr:
         process = await asyncio.create_subprocess_exec(
             str(NODE), "--import", (entry_dir / "source-resolver.ts").as_uri(),
@@ -89,8 +103,8 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
     if envelope.get("ok") is not True:
         raise RuntimeError(f"Pi runner failed: {envelope.get('error')}")
     result = envelope["result"]
-    if result["model"] != "gpt-6-luna" or result["provider"] != "openai":
-        raise RuntimeError("Candidate execution changed the fixed provider/model")
+    if result["model"] != model_id or result["provider"] != "openai":
+        raise RuntimeError("Pi returned a different provider or model than requested")
     packed = []
     total = 0
     for path in sorted((workspace / "output").rglob("*")):
@@ -111,7 +125,7 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
         })
     observed = {
         "task": task.task, "response": result["response"], "messages": result["messages"], "files": packed,
-        "stats": result["stats"], "protocol": PILOT,
+        "stats": result["stats"], "protocol": {**PILOT, "agent_model": f"openai:{model_id}"},
     }
     (run_dir / "result.json").write_text(json.dumps(observed), encoding="utf-8")
     return observed

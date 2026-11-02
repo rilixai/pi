@@ -9,14 +9,17 @@ message conversion, compaction, and tool implementations. The Python bridge,
 source resolver, provider adapters, benchmark, judge, and evaluation policy remain
 outside that surface. See `beaker_integration.py` for the exact source paths.
 
-## Fixed protocol
+## Benchmark and model configuration
 
-`jobbench/pilot.json` records the protocol:
+`jobbench/pilot.json` records the benchmark pins and default models:
 
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
-- Pi model: `openai:gpt-6-luna`, thinking level `medium`, one-hour wall-clock budget.
-- Judge: `openrouter:x-ai/grok-4.7`, independent of the Pi model.
+- Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
+  `medium`, one-hour wall-clock budget.
+- Judge: `google:gemini-3.1-flash-lite`, independent of the Pi model. This uses
+  JobBench's official rubric logic with a custom judge model; compare scores
+  within the same judge configuration.
 - Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
   The unweighted rubric pass rate is diagnostic only. Average task scores with
   equal task weights when reporting a subset aggregate.
@@ -118,7 +121,7 @@ image build. A fresh hosted daemon currently builds it once per attempt; its
 temporary image store is removed on teardown. Reusing this fixed image across
 hosted runs requires a prebuilt image in a registry or a persistent image cache.
 Only Excel calculation uses the container; document extraction and calls to the
-Grok API run in the evaluator.
+Gemini API run in the evaluator.
 
 ## Structural smoke: no model calls
 
@@ -154,8 +157,8 @@ or prove Docker is available. It is a structural check, not an evaluated score.
 
 ## Run a real task locally
 
-These commands make paid API calls. Set `OPENAI_API_KEY` for generation and
-`JUDGE_API_KEY` for the official xAI judge in the calling environment, or keep
+These commands make paid API calls. Set `OPENAI_API_KEY` for generation and a
+Google Gemini API key in `JUDGE_API_KEY` or `GEMINI_API_KEY` for local judging, or keep
 local secrets in `.beaker/.env` and explicitly load that file in your shell.
 The Python scripts do not automatically source `.env` files.
 
@@ -171,6 +174,25 @@ checkout:
 To generate without calling the judge, append `--phase generate`. To score the
 saved deliverables later, reuse the task and run directory with `--phase score`.
 The scorer verifies the saved task and protocol before reusing an output.
+
+To change the rollout model, choose an OpenAI model in the Beaker launch or pass
+`--model openai:gpt-6-sol` to the local command. A bare API ID such as
+`gpt-6-sol` also works locally. Without an override, `jobbench/pilot.json`'s
+`agent_model` is the default. The adapter records the actual selected model in
+the saved protocol and traces; it does not require a particular GPT version.
+The TypeScript runner currently supports the OpenAI provider only.
+
+When scoring an existing local run, its recorded rollout model is retained even
+if the default has since changed. An explicit `--model` must match that recorded
+model. Scoring uses the current judge configuration and records it in `score.json`,
+so saved deliverables can be re-scored after a judge change. Keep the judge fixed
+while comparing harness candidates.
+
+Hosted judging uses `scoring_inference_target()` for Beaker's dedicated scorer
+accounting. Local judging uses Google's OpenAI-compatible endpoint; set
+`JUDGE_API_BASE` to override that endpoint. The official judge code under
+`vendor/jobbench/` is unchanged. Its 200,000-token request ceiling is bounded by
+the selected model's output limit in the hosted Beaker gateway.
 
 Every generation creates its own `workspace/task_folder/`, `workspace/output/`,
 `workspace/scratch/`, and Pi HOME/config under the run directory. Pi starts with

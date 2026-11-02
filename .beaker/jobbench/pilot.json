@@ -4,7 +4,7 @@
   "benchmark_repository": "Job-Bench/job-bench-eval",
   "benchmark_revision": "660b33a86ed032559df0b2fdc1ad38cf7ceb83f3",
   "agent_model": "openai:gpt-6-luna",
-  "scorer_model": "openrouter:x-ai/grok-4.7",
+  "scorer_model": "google:gemini-3.1-flash-lite",
   "timeout_seconds": 3600,
   "thinking_level": "medium",
   "train": [
