@@ -200,17 +200,30 @@ judging reads the YAML next to this integration, independently of the shell's
 working directory. Google models use Google's OpenAI-compatible endpoint by
 default; set `JUDGE_API_BASE` to override it. Other providers require both
 `JUDGE_API_BASE` and `JUDGE_API_KEY` locally. `score.json` records the actual judge
-model used, independently of the saved rollout protocol. The official judge code under
-`vendor/jobbench/` is unchanged. Its 200,000-token request ceiling is bounded by
+model used, independently of the saved rollout protocol. The upstream sources under
+`vendor/jobbench/` are unchanged. The 200,000-token request ceiling is bounded by
 the selected model's output limit in the hosted Beaker gateway.
 Empty submissions record `scorer_model: null`: they score zero without a judge call
 or provider credentials.
 
-The official judge explicitly sends `temperature=0`. LiteLLM currently accepts
-that parameter for Gemini 3+ and emits a deprecation warning; the warning alone
-does not fail scoring. Omitting deprecated sampling parameters requires a
-provider-specific transport change or an upstream judge update. This integration
-does not suppress the warning or change the official judge's request.
+`jobbench/judging.py` preserves the pinned upstream judge's prompts, image
+selection, and result layout, and adds `response_format: json_schema` with strict
+typed fields and an exact criterion count. It validates criterion indices and
+the relationship between individual verdicts and `rubric_passed` before accepting
+a result. Extraction, JSON recovery, rubric weights, and score aggregation still
+use the upstream helpers.
+
+Rubrics run on at most eight worker threads and remain in their original order.
+Each rubric has at most three attempts, with a two-second pause between attempts.
+Only failed rubrics retry: malformed JSON, invalid fields or verdicts, incomplete
+responses, and transient API errors. SDK retries are disabled to keep this budget
+bounded. Authentication, permission, and invalid request errors fail immediately;
+the adapter never falls back to unstructured output or turns judge errors into
+zero scores. Exhausted errors identify the rubric and the validation or API cause.
+
+Gemini 3 requests omit the upstream `temperature=0` override and use the provider's
+default sampling to avoid the deprecated setting. Other models retain the
+upstream temperature. Judge selection still comes only from `beaker.yaml`.
 
 Every generation creates its own `workspace/task_folder/`, `workspace/output/`,
 `workspace/scratch/`, and Pi HOME/config under the run directory. Pi starts with
