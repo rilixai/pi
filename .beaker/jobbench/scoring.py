@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,9 @@ from .execution import MAX_DELIVERABLE_BYTES
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor/jobbench/eval"))
 import judge as official_judge
+
+
+MAX_JUDGE_WORKERS = 8
 
 
 def restore_submission(files: list[dict[str, Any]], directory: Path) -> None:
@@ -68,26 +72,37 @@ def score_submission(
                 if target.model != PILOT["scorer_model"]:
                     raise ValueError(f"The scorer must remain {PILOT['scorer_model']}")
                 api_base, api_key, model = target.base_url, target.api_key, target.model
-            for index, rubric in enumerate(expected.rubrics):
-                result, debug = official_judge.judge_rubric(
-                    index, rubric.model_dump(), text, model, api_base, api_key,
-                    image_attachments=images,
-                )
-                if debug.get("api_exit_code") != 0 or debug.get("error"):
-                    raise RuntimeError(f"JobBench judge failed on rubric {index}: {debug.get('error')}")
-                parsed, _ = official_judge.parse_judge_json(debug["raw_response"])
-                criteria = parsed.get("criteria_results")
-                if (
-                    not isinstance(criteria, list) or len(criteria) != len(rubric.criterion)
-                    or any(not isinstance(item, dict) for item in criteria)
-                    or any(type(item.get("index")) is not int for item in criteria)
-                    or [item.get("index") for item in criteria] != list(range(len(rubric.criterion)))
-                    or any(type(item.get("passed")) is not bool for item in criteria)
-                    or type(parsed.get("rubric_passed")) is not bool
-                    or parsed["rubric_passed"] != all(item["passed"] for item in criteria)
-                ):
-                    raise RuntimeError(f"JobBench judge returned an invalid criterion schema for rubric {index}")
-                rubric_results.append(result)
+            executor = ThreadPoolExecutor(max_workers=MAX_JUDGE_WORKERS)
+            try:
+                futures = [
+                    executor.submit(
+                        official_judge.judge_rubric,
+                        index, rubric.model_dump(), text, model, api_base, api_key,
+                        image_attachments=images,
+                    )
+                    for index, rubric in enumerate(expected.rubrics)
+                ]
+                # Consume in rubric order so outputs and the first reported failure stay stable.
+                for index, rubric in enumerate(expected.rubrics):
+                    result, debug = futures[index].result()
+                    if debug.get("api_exit_code") != 0 or debug.get("error"):
+                        raise RuntimeError(f"JobBench judge failed on rubric {index}: {debug.get('error')}")
+                    parsed, _ = official_judge.parse_judge_json(debug["raw_response"])
+                    criteria = parsed.get("criteria_results")
+                    if (
+                        not isinstance(criteria, list) or len(criteria) != len(rubric.criterion)
+                        or any(not isinstance(item, dict) for item in criteria)
+                        or any(type(item.get("index")) is not int for item in criteria)
+                        or [item.get("index") for item in criteria] != list(range(len(rubric.criterion)))
+                        or any(type(item.get("passed")) is not bool for item in criteria)
+                        or type(parsed.get("rubric_passed")) is not bool
+                        or parsed["rubric_passed"] != all(item["passed"] for item in criteria)
+                    ):
+                        raise RuntimeError(f"JobBench judge returned an invalid criterion schema for rubric {index}")
+                    rubric_results.append(result)
+            finally:
+                # In-flight calls cannot be interrupted; cancel queued work and ignore later results on failure.
+                executor.shutdown(wait=False, cancel_futures=True)
         else:
             rubric_results = [
                 official_judge.build_failed_rubric_result(index, rubric.model_dump(), "No output files produced.")
