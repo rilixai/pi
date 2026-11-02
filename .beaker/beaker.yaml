@@ -6,7 +6,7 @@
 # Optional config_defaults applies to every integration in this file.
 # Add it only for shared run defaults; explicit CLI options override them.
 config_defaults:
-  max_concurrency: 1
+  max_concurrency: 6
 integrations:
   pi-jobbench:
     agent_key: pi-jobbench
