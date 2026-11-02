@@ -1,8 +1,8 @@
-# Pi harness optimization on JobBench: local pilot
+# Pi harness optimization on JobBench: five-task pilot
 
 This integration evaluates Pi's TypeScript source harness on five real tasks from
-the JobBench `main` split. It is prepared for **local use only**: no Beaker agent,
-hosted dataset, paid baseline, or optimization run is created by setup.
+the JobBench `main` split. The configuration selects the `pi-jobbench` Beaker
+integration. Importing the integration does not create a dataset or launch a run.
 
 The editable surface includes Pi's agent loop, agent session, system prompt,
 message conversion, compaction, and tool implementations. The Python bridge,
@@ -16,7 +16,7 @@ outside that surface. See `beaker_integration.py` for the exact source paths.
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Pi model: `openai:gpt-6-sol`, thinking level `medium`, one-hour wall-clock budget.
-- Judge: `xai:grok-4.3`, independent of the Pi model.
+- Judge: `openrouter:x-ai/grok-4.7`, independent of the Pi model.
 - Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
   The unweighted rubric pass rate is diagnostic only. Average task scores with
   equal task weights when reporting a subset aggregate.
@@ -49,6 +49,21 @@ Python dependencies are evaluation tooling; Pi's normal Node runtime does not
 import Beaker. The Node subprocess uses this checkout's `source-resolver.ts` and
 `local-runner-cli.ts`, so edited candidate TypeScript is loaded without a build.
 No npm registry version of Pi is used as the evaluated harness.
+
+The JobBench adapter uses Node.js 24.19.0 supplied by the pinned
+[`nodejs-wheel-binaries`](https://pypi.org/project/nodejs-wheel-binaries/24.19.0/)
+evaluation dependency. It does not depend on the system's Node version.
+Beaker excludes `node_modules` when copying a candidate checkout, so the adapter
+runs `npm ci --ignore-scripts --include=dev` in each fresh copy before launching
+Pi. Setup commands have a ten-minute timeout and receive no provider API key.
+Existing local installations are reused.
+
+If model data is absent, setup downloads the immutable revision in
+`nix/model-catalog.json`, verifies its SHA-256, and uses Pi's existing offline
+hydrator. It never replaces candidate source with an installed Pi package or
+fetches a moving model catalog. npm and hydration failures include bounded logs
+in the case error. Pi failures include its structured error or stderr before
+the temporary workspace is removed, with the candidate API key redacted.
 
 The official judge recalculates spreadsheet formulas with its pinned LibreOffice
 runtime. Install Docker and prepare that runtime once before scoring:
@@ -146,8 +161,10 @@ statistics. Passing and failing rubric criteria become `CaseScore.checks`.
 - The trace includes an actual candidate-workflow stage. Individual Node model
   and tool calls are available in the saved native transcript, but are not yet
   exported as individual Beaker trace spans.
-- Hosted image provisioning (modern Node, npm dependencies, catalog data, and
-  the exact calculator runtime), provider routing, agent registration, and
-  dataset upload are deliberately not completed by this local pilot.
+- Hosted Node startup, npm dependencies, and pinned catalog hydration are
+  prepared by the adapter. End-to-end model execution and scoring still need
+  hosted validation. In particular, spreadsheet scoring requires the exact
+  upstream calculator runtime described above; Debian's system LibreOffice is
+  not an interchangeable replacement.
 
 No benchmark, judge, or optimization API calls are made by importing the integration.

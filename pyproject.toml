@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Local JobBench evaluation tooling for the Pi source checkout"
 requires-python = ">=3.12"
 dependencies = [
+    # Ship the Node runtime and npm in hosted Python images as well as local environments.
+    "nodejs-wheel-binaries==24.19.0",
     # Beaker's hosted runtime installs LiteLLM, which requires OpenAI >=2.20.
     "openai==2.20.0",
     "pandas==2.3.2",
