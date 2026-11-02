@@ -48,8 +48,9 @@ class TaskInput(BaseModel):
     @field_validator("task")
     @classmethod
     def selected_task(cls, task: str) -> str:
-        if task not in PILOT["train"] + PILOT["test"]:
-            raise ValueError("Task is outside the pinned five-task pilot")
+        parts = task.split("/")
+        if len(parts) != 2 or not parts[0] or not parts[1].startswith("task"):
+            raise ValueError(f"Task {task!r} is not a valid JobBench task path")
         return task
 
 
