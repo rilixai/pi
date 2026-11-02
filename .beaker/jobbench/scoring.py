@@ -61,12 +61,12 @@ def score_submission(
             if target is None:
                 api_base = "https://api.x.ai/v1"
                 api_key = os.environ.get("JUDGE_API_KEY", "")
-                model = "grok-4.3"
+                model = "grok-4.7"
                 if not api_key.strip():
                     raise RuntimeError("JUDGE_API_KEY is required for local Grok scoring")
             else:
                 if target.model != PILOT["scorer_model"]:
-                    raise ValueError("The scorer must remain xai:grok-4.3")
+                    raise ValueError(f"The scorer must remain {PILOT['scorer_model']}")
                 api_base, api_key, model = target.base_url, target.api_key, target.model
             for index, rubric in enumerate(expected.rubrics):
                 result, debug = official_judge.judge_rubric(
