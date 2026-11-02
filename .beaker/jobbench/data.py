@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import tempfile
 import urllib.request
 from collections.abc import AsyncIterator, Iterator
@@ -16,6 +17,7 @@ from beaker import Case, CaseFile, RepositoryRunSetupResult, RunSetup, RunSetupR
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .calculator import calculator_runtime
+from .sandbox import prepare_image
 
 
 PILOT = json.loads(Path(__file__).with_name("pilot.json").read_text(encoding="utf-8"))
@@ -141,6 +143,9 @@ class JobBenchSetup(RunSetup[TaskRow]):
     async def prepare_run(self, *, runtime: SetupRuntime) -> AsyncIterator[RunSetupResults]:
         del runtime
         async with calculator_runtime():
+            if os.environ.get("BEAKER_RUN_ID"):
+                with tempfile.TemporaryDirectory(prefix="pi-jobbench-preflight-") as temporary:
+                    await prepare_image(Path.cwd(), run_dir=Path(temporary))
             yield {"repository": RepositoryRunSetupResult()}
 
     async def load_cases(self, row: TaskRow, *, runtime: SetupRuntime) -> AsyncIterator[Case]:

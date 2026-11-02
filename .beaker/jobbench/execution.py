@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import hashlib
 import json
 import os
 import shutil
-import sys
 from pathlib import Path
 from typing import Any
 
 from .data import PILOT, TaskInput
-from .runtime import NODE, log_tail, prepare_checkout, stop_process
+from .runtime import log_tail
+from .sandbox import prepare_image, run_container
 
 
 # Keep the binary payload below Beaker's 8 MiB execution envelope after base64.
@@ -33,22 +32,7 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
     workspace.mkdir(parents=True, exist_ok=False)
     shutil.copytree(inputs / "task_folder", workspace / "task_folder")
     (workspace / "output").mkdir()
-    agent_dir = run_dir / "home/.pi/agent"
-    agent_dir.mkdir(parents=True)
-    (agent_dir / "settings.json").write_text(json.dumps({
-        "defaultThinkingLevel": PILOT["thinking_level"],
-    }), encoding="utf-8")
-    # Each child gets its own HOME/config. Judge and Beaker credentials never enter Pi's environment.
-    allowed = {
-        "PATH", "LANG", "LC_ALL", "TMPDIR", "OPENAI_API_KEY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
-        "http_proxy", "https_proxy", "no_proxy", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS",
-        "SYSTEMROOT", "SystemRoot",
-    }
-    env = {key: value for key, value in os.environ.items() if key in allowed}
-    # Absolute invocation of the evaluator's Python does not activate its venv in PATH.
-    env["PATH"] = os.pathsep.join((str(NODE.parent), str(Path(sys.executable).parent), env.get("PATH", os.defpath)))
-    env.update(HOME=str(run_dir / "home"), PI_CODING_AGENT_DIR=str(agent_dir))
-    await prepare_checkout(root, run_dir=run_dir, env=env)
+    image = await prepare_image(root, run_dir=run_dir)
     prompt = (
         "Read task_folder/TASK_INSTRUCTIONS.txt and the reference files under task_folder/. "
         "Complete that task. Save only final deliverables under output/. "
@@ -56,23 +40,13 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
         "use appropriate tools or write code to inspect them. Explain conflicting sources.\n\n"
         "Task instructions:\n" + task.instructions
     )
-    request = {"cwd": str(workspace), "prompt": prompt, "model": "gpt-6-sol"}
-    with (run_dir / "pi.stderr.log").open("wb") as stderr:
-        process = await asyncio.create_subprocess_exec(
-            str(NODE), "--import", (entry_dir / "source-resolver.ts").as_uri(),
-            str(entry_dir / "local-runner-cli.ts"), cwd=workspace, env=env,
-            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=stderr,
-            start_new_session=True,
-        )
-        communication = asyncio.create_task(process.communicate(json.dumps(request).encode()))
-        try:
-            stdout, _ = await asyncio.wait_for(asyncio.shield(communication), timeout=PILOT["timeout_seconds"])
-        except BaseException:
-            await stop_process(process)
-            await communication
-            raise
+    request = {"cwd": "/workspace", "prompt": prompt, "model": "gpt-6-sol"}
+    returncode, stdout = await run_container(
+        image=image, workspace=workspace, run_dir=run_dir, request=request,
+        thinking_level=PILOT["thinking_level"], timeout=PILOT["timeout_seconds"],
+    )
     (run_dir / "pi.stdout.json").write_bytes(stdout)
-    if process.returncode != 0:
+    if returncode != 0:
         # The temporary rollout directory is deleted on failure. Preserve the
         # runner's structured error, or Node's startup error, in Beaker's case report.
         detail = log_tail(run_dir / "pi.stderr.log")
@@ -82,8 +56,8 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
                 detail = str(failed["error"].get("message") or detail)
         except (ValueError, UnicodeDecodeError):
             pass
-        detail = detail.replace(env["OPENAI_API_KEY"], "[REDACTED]")
-        raise RuntimeError(f"Pi exited with code {process.returncode}: {detail[-4000:] or 'No diagnostics emitted'}")
+        detail = detail.replace(os.environ["OPENAI_API_KEY"], "[REDACTED]")
+        raise RuntimeError(f"Pi exited with code {returncode}: {detail[-4000:] or 'No diagnostics emitted'}")
     envelope = json.loads(stdout)
     if envelope.get("ok") is not True:
         raise RuntimeError(f"Pi runner failed: {envelope.get('error')}")
