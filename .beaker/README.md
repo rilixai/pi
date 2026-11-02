@@ -15,7 +15,7 @@ outside that surface. See `beaker_integration.py` for the exact source paths.
 
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
-- Pi model: `openai:gpt-6-sol`, thinking level `medium`, one-hour wall-clock budget.
+- Pi model: `openai:gpt-6-luna`, thinking level `medium`, one-hour wall-clock budget.
 - Judge: `openrouter:x-ai/grok-4.7`, independent of the Pi model.
 - Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
   The unweighted rubric pass rate is diagnostic only. Average task scores with

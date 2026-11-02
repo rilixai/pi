@@ -21,7 +21,7 @@ MAX_DELIVERABLE_BYTES = 4 * 1024 * 1024
 
 
 async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) -> dict[str, Any]:
-    """Run the fixed gpt-6-sol configuration and retain files outside the source tree."""
+    """Run the fixed gpt-6-luna configuration and retain files outside the source tree."""
     if os.name != "posix":
         raise RuntimeError("The local JobBench evaluator currently requires Linux or macOS")
     if not os.environ.get("OPENAI_API_KEY", "").strip():
@@ -56,7 +56,7 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
         "use appropriate tools or write code to inspect them. Explain conflicting sources.\n\n"
         "Task instructions:\n" + task.instructions
     )
-    request = {"cwd": str(workspace), "prompt": prompt, "model": "gpt-6-sol"}
+    request = {"cwd": str(workspace), "prompt": prompt, "model": "gpt-6-luna"}
     with (run_dir / "pi.stderr.log").open("wb") as stderr:
         process = await asyncio.create_subprocess_exec(
             str(NODE), "--import", (entry_dir / "source-resolver.ts").as_uri(),
@@ -89,7 +89,7 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
     if envelope.get("ok") is not True:
         raise RuntimeError(f"Pi runner failed: {envelope.get('error')}")
     result = envelope["result"]
-    if result["model"] != "gpt-6-sol" or result["provider"] != "openai":
+    if result["model"] != "gpt-6-luna" or result["provider"] != "openai":
         raise RuntimeError("Candidate execution changed the fixed provider/model")
     packed = []
     total = 0

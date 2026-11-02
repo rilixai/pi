@@ -16,7 +16,7 @@ from jobbench.scoring import score_async
 
 async def run_case(*, case_input: JsonValue, runtime: RolloutRuntime) -> CaseResult:
     if runtime.model not in (None, PILOT["agent_model"]):
-        raise ValueError("This harness experiment fixes the model to openai:gpt-6-sol")
+        raise ValueError("This harness experiment fixes the model to openai:gpt-6-luna")
     task = TaskInput.model_validate(case_input)
     # Repository evaluators set cwd to the candidate tree. Never fall back to a seed install.
     root = Path.cwd()
