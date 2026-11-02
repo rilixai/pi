@@ -6,13 +6,14 @@
 # Optional config_defaults applies to every integration in this file.
 # Add it only for shared run defaults; explicit CLI options override them.
 config_defaults:
-  scorer_model: xai:grok-4.3
   max_concurrency: 1
 integrations:
   pi-jobbench:
+    agent_key: pi-jobbench
     entrypoint: beaker_integration:integration
     package_import_root: .beaker
     source_dir: .
+    scorer_model: xai:grok-4.3
     required_env: []
     environment_base: debian_slim:3.12
 default_integration: pi-jobbench

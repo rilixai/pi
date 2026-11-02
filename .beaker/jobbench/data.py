@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from beaker import Case, CaseFile, RepositoryRunSetup, SetupRuntime
+from beaker import Case, CaseFile, RunSetup, SetupRuntime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -132,7 +132,7 @@ def stage_inputs(task: TaskInput, destination: Path) -> tuple[CaseFile, ...]:
     return tuple(attached)
 
 
-class JobBenchSetup(RepositoryRunSetup[TaskRow]):
+class JobBenchSetup(RunSetup[TaskRow]):
     row_model = TaskRow
 
     async def load_cases(self, row: TaskRow, *, runtime: SetupRuntime) -> AsyncIterator[Case]:

@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["beaker-sdk==0.6.4"]
+dev = ["beaker-sdk[tracing]==0.6.5"]
 
 [tool.uv]
 package = false

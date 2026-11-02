@@ -20,7 +20,23 @@ async def run_case(*, case_input: JsonValue, runtime: RolloutRuntime) -> CaseRes
     root = Path.cwd()
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-rollout-") as temporary:
         with runtime.trace.stage("pi.jobbench", inputs={"task": task.task, "model": PILOT["agent_model"]}) as stage:
-            observed = await run_task(task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary))
+            with runtime.trace.model_call(
+                operation="chat",
+                provider="openai",
+                model="gpt-6-sol",
+                input_messages=[{"role": "user", "content": task.instructions}],
+            ) as call:
+                observed = await run_task(task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary))
+                tokens = observed["stats"].get("tokens", {}) if isinstance(observed.get("stats"), dict) else {}
+                call.output({"response": observed["response"][:16000], "stats": observed["stats"]})
+                if isinstance(tokens, dict) and isinstance(tokens.get("input"), int) and isinstance(tokens.get("output"), int):
+                    call.usage(
+                        input_tokens=tokens["input"],
+                        output_tokens=tokens["output"],
+                        total_tokens=tokens.get("total"),
+                        cached_input_tokens=tokens.get("cacheRead"),
+                        cache_write_input_tokens=tokens.get("cacheWrite"),
+                    )
             manifest = [{key: value for key, value in item.items() if key != "content_base64"} for item in observed["files"]]
             stage.output({"files": manifest, "stats": observed["stats"]})
             return CaseResult(
