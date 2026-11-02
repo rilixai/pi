@@ -40,14 +40,14 @@ async def main() -> None:
         }
         # Re-score the same deliverables with the current judge, while retaining
         # their original rollout model and checking the benchmark configuration.
-        saved_protocol = {**result["protocol"], "scorer_model": PROTOCOL["scorer_model"]}
+        saved_protocol = {key: value for key, value in result["protocol"].items() if key != "scorer_model"}
         if saved_protocol != expected_protocol or result["task"] != args.task:
             raise ValueError("Saved run uses a different task or protocol")
     print(result["response"])
     if args.phase in ("score", "all"):
         score = await asyncio.to_thread(
             score_submission, selected.expected, result["files"], report_dir=directory,
-            protocol={**result["protocol"], "scorer_model": PROTOCOL["scorer_model"]},
+            protocol=result["protocol"],
         )
         print(json.dumps({"objective": score.objective, "field_scores": dict(score.field_scores)}, indent=2))
     print(f"Run retained at {directory}")

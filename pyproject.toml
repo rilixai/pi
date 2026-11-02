@@ -21,6 +21,7 @@ dependencies = [
     "nbformat==5.10.4",
     "nbclient==0.10.2",
     "pydantic==2.12.4",
+    "PyYAML==6.0.3",
 ]
 
 [dependency-groups]

@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+import yaml
 from beaker import CaseScore, Check, scoring_inference_target
 
 from .data import Expected, PROTOCOL
@@ -23,6 +24,19 @@ import judge as official_judge
 
 
 MAX_JUDGE_WORKERS = 8
+
+
+def configured_scorer_model() -> str:
+    """Read the local judge model from this integration's YAML, independently of cwd."""
+    config_path = Path(__file__).resolve().parents[1] / "beaker.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    model = config["integrations"]["pi-jobbench"].get("scorer_model")
+    if not isinstance(model, str):
+        raise ValueError("Set integrations.pi-jobbench.scorer_model in .beaker/beaker.yaml")
+    provider, _, model_id = model.strip().partition(":")
+    if not provider or not model_id.strip():
+        raise ValueError("Set integrations.pi-jobbench.scorer_model to a provider:model ID in .beaker/beaker.yaml")
+    return model.strip()
 
 
 def restore_submission(files: list[dict[str, Any]], directory: Path) -> None:
@@ -57,21 +71,27 @@ def score_submission(
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-score-") as temporary:
         directory = Path(temporary)
         restore_submission(files, directory)
+        selected_model = None
         rubric_results = []
         if files:
             extraction: dict[str, Any] = {}
             text = official_judge.extract_all_file_contents(directory, extraction)
             images = official_judge.collect_image_attachments(directory)
             target = scoring_inference_target()
+            selected_model = target.model if target is not None else configured_scorer_model()
             if target is None:
-                api_base = os.environ.get("JUDGE_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/openai"
-                api_key = os.environ.get("JUDGE_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
-                model = PROTOCOL["scorer_model"].split(":", 1)[1]
+                provider, _, model = selected_model.partition(":")
+                api_base = os.environ.get("JUDGE_API_BASE")
+                if not api_base:
+                    if provider != "google":
+                        raise RuntimeError(f"JUDGE_API_BASE is required for local scoring with provider {provider!r}")
+                    api_base = "https://generativelanguage.googleapis.com/v1beta/openai"
+                api_key = os.environ.get("JUDGE_API_KEY") or (
+                    os.environ.get("GEMINI_API_KEY", "") if provider == "google" else ""
+                )
                 if not api_key.strip():
-                    raise RuntimeError("JUDGE_API_KEY or GEMINI_API_KEY is required for local Gemini scoring")
+                    raise RuntimeError("JUDGE_API_KEY is required for local scoring; Google also accepts GEMINI_API_KEY")
             else:
-                if target.model != PROTOCOL["scorer_model"]:
-                    raise ValueError(f"The scorer must remain {PROTOCOL['scorer_model']}")
                 api_base, api_key, model = target.base_url, target.api_key, target.model
             executor = ThreadPoolExecutor(max_workers=MAX_JUDGE_WORKERS)
             try:
@@ -113,7 +133,8 @@ def score_submission(
         if report_dir is not None:
             report_dir.mkdir(parents=True, exist_ok=True)
             (report_dir / "score.json").write_text(json.dumps({
-                "protocol": PROTOCOL if protocol is None else protocol, "scorecard": scorecard, "rubrics": rubric_results,
+                "protocol": {**(PROTOCOL if protocol is None else protocol), "scorer_model": selected_model},
+                "scorecard": scorecard, "rubrics": rubric_results,
             }, indent=2), encoding="utf-8")
         checks = tuple(
             Check(

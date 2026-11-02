@@ -11,7 +11,9 @@ outside that surface. See `beaker_integration.py` for the exact source paths.
 
 ## Benchmark and model configuration
 
-`jobbench/protocol.json` records the benchmark pins and default models:
+`jobbench/protocol.json` records benchmark pins and Pi execution defaults.
+`beaker.yaml`'s `integrations.pi-jobbench.scorer_model` is the only judge model
+setting, used by both hosted and local scoring:
 
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
@@ -192,11 +194,23 @@ model. Scoring uses the current judge configuration and records it in `score.jso
 so saved deliverables can be re-scored after a judge change. Keep the judge fixed
 while comparing harness candidates.
 
-Hosted judging uses `scoring_inference_target()` for Beaker's dedicated scorer
-accounting. Local judging uses Google's OpenAI-compatible endpoint; set
-`JUDGE_API_BASE` to override that endpoint. The official judge code under
+Hosted judging uses the model and credentials supplied by
+`scoring_inference_target()` for Beaker's dedicated scorer accounting. Local
+judging reads the YAML next to this integration, independently of the shell's
+working directory. Google models use Google's OpenAI-compatible endpoint by
+default; set `JUDGE_API_BASE` to override it. Other providers require both
+`JUDGE_API_BASE` and `JUDGE_API_KEY` locally. `score.json` records the actual judge
+model used, independently of the saved rollout protocol. The official judge code under
 `vendor/jobbench/` is unchanged. Its 200,000-token request ceiling is bounded by
 the selected model's output limit in the hosted Beaker gateway.
+Empty submissions record `scorer_model: null`: they score zero without a judge call
+or provider credentials.
+
+The official judge explicitly sends `temperature=0`. LiteLLM currently accepts
+that parameter for Gemini 3+ and emits a deprecation warning; the warning alone
+does not fail scoring. Omitting deprecated sampling parameters requires a
+provider-specific transport change or an upstream judge update. This integration
+does not suppress the warning or change the official judge's request.
 
 Every generation creates its own `workspace/task_folder/`, `workspace/output/`,
 `workspace/scratch/`, and Pi HOME/config under the run directory. Pi starts with

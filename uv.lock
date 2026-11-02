@@ -1398,6 +1398,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-docx" },
     { name = "python-pptx" },
+    { name = "pyyaml" },
     { name = "scipy" },
     { name = "xlrd" },
 ]
@@ -1422,6 +1423,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.12.4" },
     { name = "python-docx", specifier = "==1.2.0" },
     { name = "python-pptx", specifier = "==1.0.2" },
+    { name = "pyyaml", specifier = "==6.0.3" },
     { name = "scipy", specifier = "==1.16.1" },
     { name = "xlrd", specifier = "==2.0.2" },
 ]
