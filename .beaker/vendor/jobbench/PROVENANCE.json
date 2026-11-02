@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/Job-Bench/job-bench-eval",
+  "revision": "660b33a86ed032559df0b2fdc1ad38cf7ceb83f3",
+  "git_blob_sha1": {
+    "eval/judge.py": "94a5b07c84a2c2f73a62dde5e49d05cd89a62180",
+    "eval/jobbench_eval/calc.py": "ab4153e153c4e6a0c4426ff6162a04a273609fb3",
+    "eval/jobbench_eval/calc_worker.py": "18f1d36e51ea7bfd425f33a0c849a5f3735ef212",
+    "eval/jobbench_eval/excel.py": "6660444fa7973fc7cf2b2278499a200a1bb19671",
+    "eval/jobbench_eval/excel_text.py": "deae92071ae72b2748f951c0f007cdc4c152cabd",
+    "eval/jobbench_eval/rich_text.py": "dab491010314bbbbd6cc7f68942fee7e5beec4b1",
+    "eval/jobbench_eval/__init__.py": "8eb20f67499a70ef07f4a1af36540736649067c9",
+    "eval/calc-runtime/Dockerfile": "829e9938581cc2c4a00977ae7212466e7cc10485",
+    "LICENSE": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+  }
+}

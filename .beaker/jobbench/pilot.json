@@ -1,0 +1,19 @@
+{
+  "dataset_repository": "JobBench/job-bench",
+  "dataset_revision": "d43a66575635da0d3f6cb9a20976dc1a60f3ffc9",
+  "benchmark_repository": "Job-Bench/job-bench-eval",
+  "benchmark_revision": "660b33a86ed032559df0b2fdc1ad38cf7ceb83f3",
+  "agent_model": "openai:gpt-6-sol",
+  "scorer_model": "xai:grok-4.3",
+  "timeout_seconds": 3600,
+  "thinking_level": "medium",
+  "train": [
+    "data_entry_keyers/task1",
+    "human_resources_specialists/task1",
+    "supply_chain_managers/task1"
+  ],
+  "test": [
+    "social_science_research_assistants/task1",
+    "sociology_teachers_postsecondary/task1"
+  ]
+}
