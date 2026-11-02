@@ -16,4 +16,6 @@ integrations:
     scorer_model: openrouter:x-ai/grok-4.7
     required_env: []
     environment_base: debian_slim:3.12
+    apt_install:
+      - docker.io
 default_integration: pi-jobbench

@@ -8,12 +8,14 @@ import json
 import tempfile
 import urllib.request
 from collections.abc import AsyncIterator, Iterator
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from beaker import Case, CaseFile, RunSetup, SetupRuntime
+from beaker import Case, CaseFile, RepositoryRunSetupResult, RunSetup, RunSetupResults, SetupRuntime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from .calculator import calculator_runtime
 
 
 PILOT = json.loads(Path(__file__).with_name("pilot.json").read_text(encoding="utf-8"))
@@ -134,6 +136,12 @@ def stage_inputs(task: TaskInput, destination: Path) -> tuple[CaseFile, ...]:
 
 class JobBenchSetup(RunSetup[TaskRow]):
     row_model = TaskRow
+
+    @asynccontextmanager
+    async def prepare_run(self, *, runtime: SetupRuntime) -> AsyncIterator[RunSetupResults]:
+        del runtime
+        async with calculator_runtime():
+            yield {"repository": RepositoryRunSetupResult()}
 
     async def load_cases(self, row: TaskRow, *, runtime: SetupRuntime) -> AsyncIterator[Case]:
         destination = runtime.case_files_dir(row.id)

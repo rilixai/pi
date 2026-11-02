@@ -79,6 +79,16 @@ evaluation error, not a score of zero. `JOBBENCH_CALC_NATIVE=1` is only suitable
 inside the exact upstream calculation image; it is not a generic LibreOffice
 fallback.
 
+Hosted setup installs `docker.io` through `apt_install`. Before loading cases,
+`JobBenchSetup.prepare_run` connects to Docker or starts an attempt-owned daemon
+inside Beaker's Modal VM, builds the unchanged upstream calculator Dockerfile,
+and verifies formula recalculation with the official worker. Startup/build
+failures therefore stop setup before paid rollouts. The daemon receives no
+provider or Beaker API credentials and is stopped when the attempt closes.
+The trusted image build uses host networking; workbook calculation retains the
+official read-only, offline container restrictions. Local structural smoke
+does not start Docker, and local scoring still uses the Docker setup above.
+
 ## Structural smoke: no model calls
 
 From the checkout root, run this Python snippet with `.beaker/.venv/bin/python`:
@@ -163,8 +173,7 @@ statistics. Passing and failing rubric criteria become `CaseScore.checks`.
   exported as individual Beaker trace spans.
 - Hosted Node startup, npm dependencies, and pinned catalog hydration are
   prepared by the adapter. End-to-end model execution and scoring still need
-  hosted validation. In particular, spreadsheet scoring requires the exact
-  upstream calculator runtime described above; Debian's system LibreOffice is
-  not an interchangeable replacement.
+  hosted validation. Hosted setup prepares the exact upstream calculator
+  container described above; it requires a VM sandbox that supports Docker.
 
 No benchmark, judge, or optimization API calls are made by importing the integration.
