@@ -1,7 +1,7 @@
-# Pi harness optimization on JobBench: five-task pilot
+# Pi harness optimization on JobBench
 
-This integration evaluates Pi's TypeScript source harness on five real tasks from
-the JobBench `main` split. The configuration selects the `pi-jobbench` Beaker
+This integration evaluates Pi's TypeScript source harness on the tasks supplied
+by the selected JobBench dataset. The configuration selects the `pi-jobbench` Beaker
 integration. Importing the integration does not create a dataset or launch a run.
 
 The editable surface includes Pi's agent loop, agent session, system prompt,
@@ -11,7 +11,7 @@ outside that surface. See `beaker_integration.py` for the exact source paths.
 
 ## Benchmark and model configuration
 
-`jobbench/pilot.json` records the benchmark pins and default models:
+`jobbench/protocol.json` records the benchmark pins and default models:
 
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
@@ -24,24 +24,15 @@ outside that surface. See `beaker_integration.py` for the exact source paths.
   The unweighted rubric pass rate is diagnostic only. Average task scores with
   equal task weights when reporting a subset aggregate.
 
-| Beaker split | Original JobBench task |
-| --- | --- |
-| train | `data_entry_keyers/task1` |
-| train | `human_resources_specialists/task1` |
-| train | `supply_chain_managers/task1` |
-| test | `social_science_research_assistants/task1` |
-| test | `sociology_teachers_postsecondary/task1` |
-
-All five are from the original `main` split. The selection exercises CSV, Excel,
-images, PDF, DOCX, SQLite, and notebooks, without supplying hidden search-reference
-folders. This is a pilot cohort, **not the 65-task JobBench leaderboard result**.
-Do not use the two held-out cases to select candidate changes.
+Task selection and train/test assignment belong to the supplied dataset, not
+the evaluation protocol. No task list or split size is fixed in this repository.
+Use distinct tasks for train and test, and do not use held-out tasks to select
+candidate changes. A subset score is not a full JobBench leaderboard result.
 
 ## Task instructions and reference files
 
 `TASK_INSTRUCTIONS.txt` is a dataset file, not a tracked file in this Pi repository.
-For example, the pinned original for the
-first train task is available on
+For example, the pinned original for `data_entry_keyers/task1` is available on
 [Hugging Face](https://huggingface.co/datasets/JobBench/job-bench/resolve/d43a66575635da0d3f6cb9a20976dc1a60f3ffc9/dataset/data_entry_keyers/task1/task_folder/TASK_INSTRUCTIONS.txt).
 
 The loader reads its contents into the Beaker row's `input.instructions` field.
@@ -125,17 +116,30 @@ Gemini API run in the evaluator.
 
 ## Structural smoke: no model calls
 
-From the checkout root, run this Python snippet with `.beaker/.venv/bin/python`:
+For an existing Beaker dataset, pass its immutable selector:
+
+```bash
+.beaker/.venv/bin/beaker run smoke --strict \
+  --integration-id pi-jobbench --dataset NAME@REVISION
+```
+
+To build a dataset from upstream tasks, prepare a JSON file outside the checkout
+(for example `/tmp/jobbench-split.json`) with `train` and `test` arrays of task
+paths. Both arrays must be nonempty, and task paths must be unique across them.
+Choose the tasks and split sizes for your experiment; no default selection is
+applied. From the checkout root, run this snippet with `.beaker/.venv/bin/python`:
 
 ```python
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 sys.path.insert(0, ".beaker")
-from jobbench.data import pilot_dataset
+from jobbench.data import jobbench_dataset
 
-with pilot_dataset() as dataset:
+split = json.loads(Path("/tmp/jobbench-split.json").read_text(encoding="utf-8"))
+with jobbench_dataset(train_tasks=split["train"], test_tasks=split["test"]) as dataset:
     subprocess.run(
         [
             ".beaker/.venv/bin/beaker", "run", "smoke", "--strict",
@@ -162,8 +166,8 @@ Google Gemini API key in `JUDGE_API_KEY` or `GEMINI_API_KEY` for local judging, 
 local secrets in `.beaker/.env` and explicitly load that file in your shell.
 The Python scripts do not automatically source `.env` files.
 
-Generate and score one train task, using a new output directory outside the
-checkout:
+Generate and score a task from the pinned dataset revision, using a new output
+directory outside the checkout. For example:
 
 ```bash
 .beaker/.venv/bin/python .beaker/evaluate.py \
@@ -177,7 +181,7 @@ The scorer verifies the saved task and protocol before reusing an output.
 
 To change the rollout model, choose an OpenAI model in the Beaker launch or pass
 `--model openai:gpt-6-sol` to the local command. A bare API ID such as
-`gpt-6-sol` also works locally. Without an override, `jobbench/pilot.json`'s
+`gpt-6-sol` also works locally. Without an override, `jobbench/protocol.json`'s
 `agent_model` is the default. The adapter records the actual selected model in
 the saved protocol and traces; it does not require a particular GPT version.
 The TypeScript runner currently supports the OpenAI provider only.

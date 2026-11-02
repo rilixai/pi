@@ -1,4 +1,4 @@
-"""Optimize Pi's source harness against a pinned 3-train/2-test JobBench pilot."""
+"""Optimize Pi's source harness against a supplied JobBench dataset."""
 
 from __future__ import annotations
 

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .data import PILOT, TaskInput
+from .data import PROTOCOL, TaskInput
 from .runtime import NODE, log_tail, prepare_checkout, stop_process
 
 
@@ -21,8 +21,8 @@ MAX_DELIVERABLE_BYTES = 4 * 1024 * 1024
 
 
 def rollout_model(model: str | None = None) -> str:
-    """Resolve an OpenAI API model ID from the launch override or pilot default."""
-    selected = PILOT["agent_model"] if model is None else model
+    """Resolve an OpenAI API model ID from the launch override or protocol default."""
+    selected = PROTOCOL["agent_model"] if model is None else model
     provider, separator, model_id = selected.strip().partition(":")
     if not separator:
         provider, model_id = "openai", provider
@@ -51,7 +51,7 @@ async def run_task(
     agent_dir = run_dir / "home/.pi/agent"
     agent_dir.mkdir(parents=True)
     (agent_dir / "settings.json").write_text(json.dumps({
-        "defaultThinkingLevel": PILOT["thinking_level"],
+        "defaultThinkingLevel": PROTOCOL["thinking_level"],
     }), encoding="utf-8")
     # Separate configuration and sessions, without imposing a filesystem sandbox.
     allowed = {
@@ -80,7 +80,7 @@ async def run_task(
         )
         communication = asyncio.create_task(process.communicate(json.dumps(request).encode()))
         try:
-            stdout, _ = await asyncio.wait_for(asyncio.shield(communication), timeout=PILOT["timeout_seconds"])
+            stdout, _ = await asyncio.wait_for(asyncio.shield(communication), timeout=PROTOCOL["timeout_seconds"])
         except BaseException:
             await stop_process(process)
             await communication
@@ -116,7 +116,7 @@ async def run_task(
             raise ValueError(f"Submission contains a non-regular file: {path.name}")
         total += path.stat().st_size
         if total > MAX_DELIVERABLE_BYTES:
-            raise RuntimeError("Submission exceeds the pilot's 4 MiB binary transport limit; not scored as zero")
+            raise RuntimeError("Submission exceeds the 4 MiB binary transport limit; not scored as zero")
         content = path.read_bytes()
         packed.append({
             "name": path.relative_to(workspace / "output").as_posix(),
@@ -125,7 +125,7 @@ async def run_task(
         })
     observed = {
         "task": task.task, "response": result["response"], "messages": result["messages"], "files": packed,
-        "stats": result["stats"], "protocol": {**PILOT, "agent_model": f"openai:{model_id}"},
+        "stats": result["stats"], "protocol": {**PROTOCOL, "agent_model": f"openai:{model_id}"},
     }
     (run_dir / "result.json").write_text(json.dumps(observed), encoding="utf-8")
     return observed

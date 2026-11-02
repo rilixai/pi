@@ -1,4 +1,4 @@
-"""Load five pinned, real JobBench tasks and stage their agent-visible files."""
+"""Load explicitly selected JobBench tasks and stage their agent-visible files."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import hashlib
 import json
 import tempfile
 import urllib.request
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Literal
@@ -18,9 +18,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .calculator import calculator_runtime
 
 
-PILOT = json.loads(Path(__file__).with_name("pilot.json").read_text(encoding="utf-8"))
-HF_ROOT = "https://huggingface.co/datasets/JobBench/job-bench/resolve/" + PILOT["dataset_revision"]
-METADATA_URL = "https://huggingface.co/api/datasets/JobBench/job-bench/revision/" + PILOT["dataset_revision"] + "?blobs=true"
+PROTOCOL = json.loads(Path(__file__).with_name("protocol.json").read_text(encoding="utf-8"))
+HF_ROOT = "https://huggingface.co/datasets/JobBench/job-bench/resolve/" + PROTOCOL["dataset_revision"]
+METADATA_URL = "https://huggingface.co/api/datasets/JobBench/job-bench/revision/" + PROTOCOL["dataset_revision"] + "?blobs=true"
 
 
 class InputFile(BaseModel):
@@ -84,32 +84,35 @@ def read_url(url: str) -> bytes:
         return response.read()
 
 
-def rows() -> dict[str, list[TaskRow]]:
-    """Derive labeled rows only from the fixed upstream dataset revision."""
+def rows(tasks: Sequence[str]) -> list[TaskRow]:
+    """Load the requested tasks from the fixed upstream dataset revision."""
+    if not tasks or len(set(tasks)) != len(tasks):
+        raise ValueError("Provide a nonempty list of distinct JobBench tasks")
     metadata = json.loads(read_url(METADATA_URL))
-    if metadata["sha"] != PILOT["dataset_revision"]:
+    if metadata["sha"] != PROTOCOL["dataset_revision"]:
         raise ValueError("Hugging Face returned a different dataset revision")
-    result: dict[str, list[TaskRow]] = {"train": [], "test": []}
-    for split in result:
-        for task in PILOT[split]:
-            prefix = f"dataset/{task}/"
-            files = []
-            for item in metadata["siblings"]:
-                path = item["rfilename"]
-                if path.startswith(prefix + "task_folder/"):
-                    lfs = item.get("lfs")
-                    files.append(InputFile(
-                        name=path.removeprefix(prefix), size=item["size"],
-                        digest=lfs["sha256"] if lfs else item["blobId"],
-                        algorithm="sha256" if lfs else "git-sha1",
-                    ))
-            instructions = read_url(f"{HF_ROOT}/{prefix}task_folder/TASK_INSTRUCTIONS.txt").decode("utf-8")
-            expected = Expected.model_validate_json(read_url(f"{HF_ROOT}/{prefix}RUBRICS.json"))
-            result[split].append(TaskRow(
-                id="main--" + task.replace("/", "--"),
-                input=TaskInput(task=task, instructions=instructions, files=sorted(files, key=lambda item: item.name)),
-                expected=expected,
-            ))
+    result = []
+    for task in tasks:
+        prefix = f"dataset/{task}/"
+        files = []
+        for item in metadata["siblings"]:
+            path = item["rfilename"]
+            if path.startswith(prefix + "task_folder/"):
+                lfs = item.get("lfs")
+                files.append(InputFile(
+                    name=path.removeprefix(prefix), size=item["size"],
+                    digest=lfs["sha256"] if lfs else item["blobId"],
+                    algorithm="sha256" if lfs else "git-sha1",
+                ))
+        if not files:
+            raise ValueError(f"Task {task!r} has no task_folder files at the pinned dataset revision")
+        instructions = read_url(f"{HF_ROOT}/{prefix}task_folder/TASK_INSTRUCTIONS.txt").decode("utf-8")
+        expected = Expected.model_validate_json(read_url(f"{HF_ROOT}/{prefix}RUBRICS.json"))
+        result.append(TaskRow(
+            id="main--" + task.replace("/", "--"),
+            input=TaskInput(task=task, instructions=instructions, files=sorted(files, key=lambda item: item.name)),
+            expected=expected,
+        ))
     return result
 
 
@@ -150,18 +153,21 @@ class JobBenchSetup(RunSetup[TaskRow]):
         yield Case(
             id=row.id, input=row.input.model_dump(mode="json"),
             expected=row.expected.model_dump(mode="json"), files=files,
-            metadata={"benchmark": "JobBench", "dataset_revision": PILOT["dataset_revision"]},
+            metadata={"benchmark": "JobBench", "dataset_revision": PROTOCOL["dataset_revision"]},
         )
 
 
 @contextmanager
-def pilot_dataset() -> Iterator[Path]:
-    """Temporarily materialize the real 3/2 split; never persist generated JSONL."""
-    dataset_rows = rows()
+def jobbench_dataset(*, train_tasks: Sequence[str], test_tasks: Sequence[str]) -> Iterator[Path]:
+    """Materialize explicit, disjoint task splits in a temporary directory."""
+    if not train_tasks or not test_tasks:
+        raise ValueError("Provide nonempty train and test task lists")
+    tasks = rows([*train_tasks, *test_tasks])
+    by_task = {row.input.task: row for row in tasks}
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-dataset-") as temporary:
         directory = Path(temporary)
-        for split, values in dataset_rows.items():
+        for split, selected in (("train", train_tasks), ("test", test_tasks)):
             (directory / f"{split}.jsonl").write_text(
-                "".join(row.model_dump_json() + "\n" for row in values), encoding="utf-8"
+                "".join(by_task[task].model_dump_json() + "\n" for task in selected), encoding="utf-8"
             )
         yield directory

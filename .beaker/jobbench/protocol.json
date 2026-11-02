@@ -6,14 +6,5 @@
   "agent_model": "openai:gpt-6-luna",
   "scorer_model": "google:gemini-3.1-flash-lite",
   "timeout_seconds": 3600,
-  "thinking_level": "medium",
-  "train": [
-    "data_entry_keyers/task1",
-    "human_resources_specialists/task1",
-    "supply_chain_managers/task1"
-  ],
-  "test": [
-    "social_science_research_assistants/task1",
-    "sociology_teachers_postsecondary/task1"
-  ]
+  "thinking_level": "medium"
 }

@@ -15,7 +15,7 @@ from typing import Any
 
 from beaker import CaseScore, Check, scoring_inference_target
 
-from .data import Expected, PILOT
+from .data import Expected, PROTOCOL
 from .execution import MAX_DELIVERABLE_BYTES
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor/jobbench/eval"))
@@ -66,12 +66,12 @@ def score_submission(
             if target is None:
                 api_base = os.environ.get("JUDGE_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/openai"
                 api_key = os.environ.get("JUDGE_API_KEY") or os.environ.get("GEMINI_API_KEY", "")
-                model = PILOT["scorer_model"].split(":", 1)[1]
+                model = PROTOCOL["scorer_model"].split(":", 1)[1]
                 if not api_key.strip():
                     raise RuntimeError("JUDGE_API_KEY or GEMINI_API_KEY is required for local Gemini scoring")
             else:
-                if target.model != PILOT["scorer_model"]:
-                    raise ValueError(f"The scorer must remain {PILOT['scorer_model']}")
+                if target.model != PROTOCOL["scorer_model"]:
+                    raise ValueError(f"The scorer must remain {PROTOCOL['scorer_model']}")
                 api_base, api_key, model = target.base_url, target.api_key, target.model
             executor = ThreadPoolExecutor(max_workers=MAX_JUDGE_WORKERS)
             try:
@@ -113,7 +113,7 @@ def score_submission(
         if report_dir is not None:
             report_dir.mkdir(parents=True, exist_ok=True)
             (report_dir / "score.json").write_text(json.dumps({
-                "protocol": PILOT if protocol is None else protocol, "scorecard": scorecard, "rubrics": rubric_results,
+                "protocol": PROTOCOL if protocol is None else protocol, "scorecard": scorecard, "rubrics": rubric_results,
             }, indent=2), encoding="utf-8")
         checks = tuple(
             Check(
