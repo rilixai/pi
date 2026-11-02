@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from beaker import Case, CaseResult, CaseScore, Integration, JsonValue, RolloutRuntime, repository
+from beaker.tracing import Trace
 
 from jobbench.data import Expected, JobBenchSetup, PILOT, TaskInput
 from jobbench.execution import run_task
@@ -20,23 +22,8 @@ async def run_case(*, case_input: JsonValue, runtime: RolloutRuntime) -> CaseRes
     root = Path.cwd()
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-rollout-") as temporary:
         with runtime.trace.stage("pi.jobbench", inputs={"task": task.task, "model": PILOT["agent_model"]}) as stage:
-            with runtime.trace.model_call(
-                operation="chat",
-                provider="openai",
-                model="gpt-6-sol",
-                input_messages=[{"role": "user", "content": task.instructions}],
-            ) as call:
-                observed = await run_task(task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary))
-                tokens = observed["stats"].get("tokens", {}) if isinstance(observed.get("stats"), dict) else {}
-                call.output({"response": observed["response"][:16000], "stats": observed["stats"]})
-                if isinstance(tokens, dict) and isinstance(tokens.get("input"), int) and isinstance(tokens.get("output"), int):
-                    call.usage(
-                        input_tokens=tokens["input"],
-                        output_tokens=tokens["output"],
-                        total_tokens=tokens.get("total"),
-                        cached_input_tokens=tokens.get("cacheRead"),
-                        cache_write_input_tokens=tokens.get("cacheWrite"),
-                    )
+            observed = await run_task(task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary))
+            trace_session(runtime.trace, observed["messages"])
             manifest = [{key: value for key, value in item.items() if key != "content_base64"} for item in observed["files"]]
             stage.output({"files": manifest, "stats": observed["stats"]})
             return CaseResult(
@@ -44,6 +31,65 @@ async def run_case(*, case_input: JsonValue, runtime: RolloutRuntime) -> CaseRes
                 output_kind="record",
                 context={"files": observed["files"]},
             )
+
+
+def trace_session(trace: Trace, messages: list[dict[str, Any]]) -> None:
+    """Replay Pi's session as one model call per assistant turn, each followed by the tools it ran."""
+    results = {message["toolCallId"]: message for message in messages if message.get("role") == "toolResult"}
+    inputs: list[Any] = []
+    for message in messages:
+        role = message.get("role")
+        if role == "toolResult":
+            # The result itself is the output of its tool span; the next model call only references it.
+            inputs.append({"role": "toolResult", "toolCallId": message["toolCallId"], "toolName": message["toolName"]})
+            continue
+        if role != "assistant":
+            inputs.append(_content_message(message))
+            continue
+        with trace.model_call(
+            operation="chat", provider=message["provider"], model=message["model"], input_messages=inputs,
+        ) as call:
+            call.output({
+                **_content_message(message),
+                **{key: message[key] for key in ("stopReason", "errorMessage") if message.get(key) is not None},
+            })
+            usage = message["usage"]
+            # Pi's input excludes cached tokens; Beaker counts cache reads and writes as slices of the input.
+            call.usage(
+                input_tokens=usage["input"] + usage["cacheRead"] + usage["cacheWrite"],
+                output_tokens=usage["output"],
+                cached_input_tokens=usage["cacheRead"],
+                cache_write_input_tokens=usage["cacheWrite"],
+            )
+            if message.get("durationMs") is not None:
+                call.attribute("pi.duration_ms", message["durationMs"])
+        inputs = []
+        for block in message["content"]:
+            if block.get("type") != "toolCall":
+                continue
+            with trace.tool_call(block["name"], arguments=block["arguments"], call_id=block["id"]) as tool:
+                result = results.get(block["id"])
+                if result is None:
+                    tool.output({"isError": True, "content": "Pi recorded no result for this tool call"})
+                    continue
+                tool.output({"isError": result["isError"], "content": [_block(part) for part in result["content"]]})
+                if result.get("durationMs") is not None:
+                    tool.attribute("pi.duration_ms", result["durationMs"])
+
+
+def _content_message(message: dict[str, Any]) -> dict[str, Any]:
+    content = message.get("content")
+    if content is None:
+        # Pi's custom session messages (bash executions, summaries) carry their own fields.
+        return message
+    return {"role": message["role"], "content": content if isinstance(content, str) else [_block(part) for part in content]}
+
+
+def _block(part: dict[str, Any]) -> dict[str, Any]:
+    """Keep readable content; drop opaque provider signatures and image bytes."""
+    if part.get("type") == "image":
+        return {"type": "image", "mimeType": part.get("mimeType"), "base64_chars": len(part.get("data", ""))}
+    return {key: value for key, value in part.items() if not key.endswith("Signature")}
 
 
 async def score_case(*, case: Case, result: CaseResult, case_files_dir: Path) -> CaseScore:

@@ -110,8 +110,8 @@ async def run_task(task: TaskInput, *, inputs: Path, root: Path, run_dir: Path) 
             "content_base64": base64.b64encode(content).decode("ascii"),
         })
     observed = {
-        "task": task.task, "response": result["response"], "files": packed, "stats": result["stats"],
-        "protocol": PILOT,
+        "task": task.task, "response": result["response"], "messages": result["messages"], "files": packed,
+        "stats": result["stats"], "protocol": PILOT,
     }
     (run_dir / "result.json").write_text(json.dumps(observed), encoding="utf-8")
     return observed

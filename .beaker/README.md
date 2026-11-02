@@ -209,9 +209,11 @@ statistics. Passing and failing rubric criteria become `CaseScore.checks`.
 - Evaluation configuration selects the model, thinking level, and timeout.
   Pi runs with the evaluator user's filesystem and network permissions. Beaker's
   editable scopes constrain candidate proposals; they do not sandbox Pi's tools.
-- The trace includes an actual candidate-workflow stage. Individual Node model
-  and tool calls are available in the saved native transcript, but are not yet
-  exported as individual Beaker trace spans.
+- The `pi.jobbench` stage replays Pi's session after the rollout: one model call
+  per assistant turn, followed by one tool call per tool Pi ran, with its
+  arguments and result. Spans are emitted after the run, so their timings are not
+  real; `pi.duration_ms` carries Pi's measured duration. Image bytes and provider
+  signatures are omitted.
 - Hosted Node startup, npm dependencies, and pinned catalog hydration are
   prepared by the adapter. End-to-end model execution and scoring still need
   hosted validation. Hosted setup prepares the exact upstream calculator
