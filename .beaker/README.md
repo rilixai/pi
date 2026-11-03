@@ -19,7 +19,7 @@ setting, used by both hosted and local scoring:
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
   `medium`, one-hour wall-clock budget.
-- Judge: `openrouter:x-ai/grok-4.3`, independent of the Pi model. This uses
+- Judge: `openrouter:z-ai/glm-5.3-flash`, independent of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
 - Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
@@ -113,8 +113,8 @@ An existing daemon with the official calculator image already loaded skips the
 image build. A fresh hosted daemon currently builds it once per attempt; its
 temporary image store is removed on teardown. Reusing this fixed image across
 hosted runs requires a prebuilt image in a registry or a persistent image cache.
-Only Excel calculation uses the container; document extraction and calls to the
-Gemini API run in the evaluator.
+Only Excel calculation uses the container; document extraction and judge API
+calls run in the evaluator.
 
 ## Structural smoke: no model calls
 
@@ -163,9 +163,10 @@ or prove Docker is available. It is a structural check, not an evaluated score.
 
 ## Run a real task locally
 
-These commands make paid API calls. Set `OPENAI_API_KEY` for generation and a
-Google Gemini API key in `JUDGE_API_KEY` or `GEMINI_API_KEY` for local judging, or keep
-local secrets in `.beaker/.env` and explicitly load that file in your shell.
+These commands make paid API calls. Set `OPENAI_API_KEY` for generation. For
+local judging with the configured OpenRouter model, set `JUDGE_API_BASE` to
+`https://openrouter.ai/api/v1` and `JUDGE_API_KEY` to your OpenRouter API key.
+Keep local secrets in `.beaker/.env` and explicitly load that file in your shell.
 The Python scripts do not automatically source `.env` files.
 
 Generate and score a task from the pinned dataset revision, using a new output
