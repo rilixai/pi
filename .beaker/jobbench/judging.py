@@ -23,8 +23,10 @@ import judge as official_judge
 
 
 MAX_JUDGE_ATTEMPTS = 3
-# About 3x the largest grok-4.7 judgment seen (10,770 tokens, mostly reasoning); stops a looping answer early.
-MAX_JUDGE_COMPLETION_TOKENS = 32000
+# GLM 5.3 Flash spent the old 32k cap on reasoning alone for some rubrics; this still stops a looping answer.
+MAX_JUDGE_COMPLETION_TOKENS = 64000
+# A 32k-token GLM 5.3 Flash judgment took up to 275 s; leave room for a full 64k one.
+JUDGE_REQUEST_TIMEOUT_SECONDS = 900
 JUDGE_RETRY_DELAY_SECONDS = 2
 
 
@@ -60,7 +62,7 @@ def judge_rubric(
     response_format = rubric_response_format(len(rubric.criterion))
     # Keep a single retry budget instead of multiplying adapter and SDK retries.
     last_error: Exception | None = None
-    with OpenAI(base_url=api_base, api_key=api_key, max_retries=0, timeout=300) as client:
+    with OpenAI(base_url=api_base, api_key=api_key, max_retries=0, timeout=JUDGE_REQUEST_TIMEOUT_SECONDS) as client:
         for attempt in range(1, MAX_JUDGE_ATTEMPTS + 1):
             try:
                 response = client.chat.completions.create(
