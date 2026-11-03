@@ -257,7 +257,7 @@ cleaning its workspace. The scorer does not depend on an evaluator-local path.
 The sample output contains the final response, file manifest, and native usage
 statistics. Passing and failing rubric criteria become `CaseScore.checks`.
 
-- Binary submissions currently have a 4 MiB total limit, leaving room for base64
+- Binary submissions currently have a 5.9 MiB total limit, leaving room for base64
   encoding inside Beaker's 8 MiB result envelope. Exceeding this limit is an
   explicit transport failure; submissions are never silently truncated.
 - Evaluation configuration selects the model, thinking level, and timeout.

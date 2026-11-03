@@ -16,8 +16,9 @@ from .data import PROTOCOL, TaskInput
 from .runtime import NODE, log_tail, prepare_checkout, stop_process
 
 
-# Keep the binary payload below Beaker's 8 MiB execution envelope after base64.
-MAX_DELIVERABLE_BYTES = 4 * 1024 * 1024
+# Base64 grows files by a third and must fit Beaker's 8 MiB execution envelope with the rest of
+# the case result (16k-character response, manifest, stats), so 6 MiB less 128 KiB is the ceiling.
+MAX_DELIVERABLE_BYTES = 6 * 1024 * 1024 - 128 * 1024
 
 
 def rollout_model(model: str | None = None) -> str:
@@ -116,7 +117,7 @@ async def run_task(
             raise ValueError(f"Submission contains a non-regular file: {path.name}")
         total += path.stat().st_size
         if total > MAX_DELIVERABLE_BYTES:
-            raise RuntimeError("Submission exceeds the 4 MiB binary transport limit; not scored as zero")
+            raise RuntimeError("Submission exceeds the 5.9 MiB binary transport limit; not scored as zero")
         content = path.read_bytes()
         packed.append({
             "name": path.relative_to(workspace / "output").as_posix(),
