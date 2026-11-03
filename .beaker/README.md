@@ -213,7 +213,7 @@ the relationship between individual verdicts and `rubric_passed` before acceptin
 a result. Extraction, JSON recovery, rubric weights, and score aggregation still
 use the upstream helpers.
 
-Rubrics run on at most eight worker threads and remain in their original order.
+Rubrics run on at most ten worker threads and remain in their original order.
 Each rubric has at most three attempts, with a two-second pause between attempts.
 Only failed rubrics retry: malformed JSON, invalid fields or verdicts, incomplete
 responses, and transient API errors. SDK retries are disabled to keep this budget

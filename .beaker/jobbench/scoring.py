@@ -20,7 +20,7 @@ from .execution import MAX_DELIVERABLE_BYTES
 from .judging import judge_rubric, official_judge
 
 
-MAX_JUDGE_WORKERS = 8
+MAX_JUDGE_WORKERS = 10
 
 
 def configured_scorer_model() -> str:
