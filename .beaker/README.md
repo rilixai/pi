@@ -19,7 +19,7 @@ setting, used by both hosted and local scoring:
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
   `medium`, one-hour wall-clock budget.
-- Judge: `google:gemini-3.1-flash-lite`, independent of the Pi model. This uses
+- Judge: `openrouter:x-ai/grok-4.7`, independent of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
 - Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
@@ -201,8 +201,8 @@ working directory. Google models use Google's OpenAI-compatible endpoint by
 default; set `JUDGE_API_BASE` to override it. Other providers require both
 `JUDGE_API_BASE` and `JUDGE_API_KEY` locally. `score.json` records the actual judge
 model used, independently of the saved rollout protocol. The upstream sources under
-`vendor/jobbench/` are unchanged. The 200,000-token request ceiling is bounded by
-the selected model's output limit in the hosted Beaker gateway.
+`vendor/jobbench/` are unchanged. Each rubric call is capped at 32,000 completion
+tokens, reasoning included, so a looping response fails fast and is retried.
 Empty submissions record `scorer_model: null`: they score zero without a judge call
 or provider credentials.
 

@@ -23,6 +23,8 @@ import judge as official_judge
 
 
 MAX_JUDGE_ATTEMPTS = 3
+# About 3x the largest grok-4.7 judgment seen (10,770 tokens, mostly reasoning); stops a looping answer early.
+MAX_JUDGE_COMPLETION_TOKENS = 32000
 JUDGE_RETRY_DELAY_SECONDS = 2
 
 
@@ -63,7 +65,7 @@ def judge_rubric(
             try:
                 response = client.chat.completions.create(
                     model=model, messages=messages, response_format=response_format,
-                    max_completion_tokens=200000,
+                    max_completion_tokens=MAX_JUDGE_COMPLETION_TOKENS,
                     # Gemini 3 recommends default sampling; retain upstream sampling for other models.
                     temperature=omit if model.rsplit("/", 1)[-1].split(":", 1)[-1].startswith("gemini-3") else 0.0,
                 )
