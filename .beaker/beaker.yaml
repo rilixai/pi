@@ -11,7 +11,7 @@ integrations:
     entrypoint: beaker_integration:integration
     package_import_root: .beaker
     source_dir: .
-    scorer_model: openrouter:x-ai/grok-4.7
+    scorer_model: openrouter:x-ai/grok-4.3
     required_env: []
     environment_base: debian_slim:3.12
     apt_install:

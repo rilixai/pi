@@ -19,7 +19,7 @@ setting, used by both hosted and local scoring:
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
   `medium`, one-hour wall-clock budget.
-- Judge: `openrouter:x-ai/grok-4.7`, independent of the Pi model. This uses
+- Judge: `openrouter:x-ai/grok-4.3`, independent of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
 - Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
