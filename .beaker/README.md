@@ -18,7 +18,7 @@ setting, used by both hosted and local scoring:
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Default Pi model: `openrouter:z-ai/glm-5.3`, overridable per launch; thinking level
-  `medium`, one-hour wall-clock budget.
+  `high`, one-hour wall-clock budget.
 - Judge: `openrouter:z-ai/glm-5.3-flash`, independent of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
