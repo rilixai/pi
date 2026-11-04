@@ -17,4 +17,5 @@ integrations:
     apt_install:
       - docker.io
       - util-linux
+      - tesseract-ocr
 default_integration: pi-jobbench

@@ -18,7 +18,7 @@ setting, used by both hosted and local scoring:
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Default Pi model: `openrouter:z-ai/glm-5.3`, overridable per launch; thinking level
-  `high`, one-hour wall-clock budget.
+  `high`, 1750-second wall-clock budget (under Beaker's 1800-second case limit).
 - Judge: `openrouter:z-ai/glm-5.3-flash`, independent of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
@@ -95,7 +95,8 @@ evaluation error, not a score of zero. `JOBBENCH_CALC_NATIVE=1` is only suitable
 inside the exact upstream calculation image; it is not a generic LibreOffice
 fallback.
 
-Hosted setup installs `docker.io` and `util-linux` through `apt_install`. Before loading cases,
+Hosted setup installs `docker.io`, `util-linux`, and `tesseract-ocr` (for tasks with scanned
+images) through `apt_install`. Before loading cases,
 `JobBenchSetup.prepare_run` connects to Docker or starts an attempt-owned daemon
 inside Beaker's Modal VM, builds the unchanged upstream calculator Dockerfile,
 and verifies formula recalculation with the official worker. It does not build
