@@ -17,7 +17,7 @@ setting, used by both hosted and local scoring:
 
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
-- Default Pi model: `openrouter:z-ai/glm-5.3`, overridable per launch; thinking level
+- Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
   `high`, 1750-second wall-clock budget (under Beaker's 1800-second case limit).
 - Judge: `openrouter:z-ai/glm-5.3-flash`, independent of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
@@ -165,8 +165,8 @@ or prove Docker is available. It is a structural check, not an evaluated score.
 
 ## Run a real task locally
 
-These commands make paid API calls. Set `OPENROUTER_API_KEY` for generation with the default model, or
-`OPENAI_API_KEY` for an `openai:` model. For
+These commands make paid API calls. Set `OPENAI_API_KEY` for generation with the default model, or
+`OPENROUTER_API_KEY` for an `openrouter:` model. For
 local judging with the configured OpenRouter model, set `JUDGE_API_BASE` to
 `https://openrouter.ai/api/v1` and `JUDGE_API_KEY` to your OpenRouter API key.
 Keep local secrets in `.beaker/.env` and explicitly load that file in your shell.

@@ -3,7 +3,7 @@
   "dataset_revision": "d43a66575635da0d3f6cb9a20976dc1a60f3ffc9",
   "benchmark_repository": "Job-Bench/job-bench-eval",
   "benchmark_revision": "660b33a86ed032559df0b2fdc1ad38cf7ceb83f3",
-  "agent_model": "openrouter:z-ai/glm-5.3",
+  "agent_model": "openai:gpt-6-luna",
   "timeout_seconds": 1799,
   "thinking_level": "high"
 }
