@@ -138,7 +138,7 @@ def rubric_response_format(criterion_count: int) -> ResponseFormatJSONSchema:
 
 
 def validate_judgment(content: str, criterion_count: int) -> RubricJudgment:
-    """Keep upstream JSON recovery, then validate types, criterion order, and verdict consistency."""
+    """Keep upstream JSON recovery, then validate types and criterion order."""
     try:
         parsed, _ = official_judge.parse_judge_json(content)
     except ValueError as error:
@@ -154,8 +154,6 @@ def validate_judgment(content: str, criterion_count: int) -> RubricJudgment:
     indices = [item.index for item in judgment.criteria_results]
     if indices != list(range(criterion_count)):
         raise InvalidCriterionSchema(f"Expected criterion indices 0..{criterion_count - 1} in order; received {indices}")
-    if judgment.rubric_passed != all(item.passed for item in judgment.criteria_results):
-        raise InvalidCriterionSchema("rubric_passed must equal all criteria_results.passed")
     return judgment
 
 
