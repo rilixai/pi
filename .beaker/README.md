@@ -19,7 +19,7 @@ setting, used by both hosted and local scoring:
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
   `high`, 1750-second wall-clock budget (under Beaker's 1800-second case limit).
-- Judge: `openrouter:qwen/qwen3.8-flash`, independent of the Pi model. This uses
+- Judge: `openai:gpt-6-luna`, set independently of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
 - Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
@@ -224,9 +224,9 @@ bounded. Authentication, permission, and invalid request errors fail immediately
 the adapter never falls back to unstructured output or turns judge errors into
 zero scores. Exhausted errors identify the rubric and the validation or API cause.
 
-Gemini 3 requests omit the upstream `temperature=0` override and use the provider's
-default sampling to avoid the deprecated setting. Other models retain the
-upstream temperature. Judge selection still comes only from `beaker.yaml`.
+Gemini 3 and GPT-6 requests omit the upstream `temperature=0` override and use the
+provider's default sampling: Gemini 3 deprecates the setting and GPT-6 rejects it.
+Other models retain the upstream temperature. Judge selection still comes only from `beaker.yaml`.
 
 Every generation creates its own `workspace/task_folder/`, `workspace/output/`,
 `workspace/scratch/`, and Pi HOME/config under the run directory. Pi starts with

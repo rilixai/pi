@@ -69,8 +69,8 @@ def judge_rubric(
                 stream = client.chat.completions.create(
                     model=model, messages=messages, response_format=response_format,
                     max_completion_tokens=MAX_JUDGE_COMPLETION_TOKENS,
-                    # Gemini 3 recommends default sampling; retain upstream sampling for other models.
-                    temperature=omit if model.rsplit("/", 1)[-1].split(":", 1)[-1].startswith("gemini-3") else 0.0,
+                    # Gemini 3 recommends default sampling and GPT-6 rejects temperature; retain upstream sampling for other models.
+                    temperature=omit if model.rsplit("/", 1)[-1].split(":", 1)[-1].startswith(("gemini-3", "gpt-6")) else 0.0,
                     # Beaker's gateway cuts a buffered reply at 280 s; a stream gets keep-alives and 870 s.
                     stream=True,
                 )
