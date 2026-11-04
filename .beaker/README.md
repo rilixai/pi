@@ -17,7 +17,7 @@ setting, used by both hosted and local scoring:
 
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
-- Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
+- Default Pi model: `openrouter:z-ai/glm-5.3`, overridable per launch; thinking level
   `medium`, one-hour wall-clock budget.
 - Judge: `openrouter:z-ai/glm-5.3-flash`, independent of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
@@ -163,7 +163,8 @@ or prove Docker is available. It is a structural check, not an evaluated score.
 
 ## Run a real task locally
 
-These commands make paid API calls. Set `OPENAI_API_KEY` for generation. For
+These commands make paid API calls. Set `OPENROUTER_API_KEY` for generation with the default model, or
+`OPENAI_API_KEY` for an `openai:` model. For
 local judging with the configured OpenRouter model, set `JUDGE_API_BASE` to
 `https://openrouter.ai/api/v1` and `JUDGE_API_KEY` to your OpenRouter API key.
 Keep local secrets in `.beaker/.env` and explicitly load that file in your shell.
@@ -182,12 +183,12 @@ To generate without calling the judge, append `--phase generate`. To score the
 saved deliverables later, reuse the task and run directory with `--phase score`.
 The scorer verifies the saved task and protocol before reusing an output.
 
-To change the rollout model, choose an OpenAI model in the Beaker launch or pass
-`--model openai:gpt-6-sol` to the local command. A bare API ID such as
-`gpt-6-sol` also works locally. Without an override, `jobbench/protocol.json`'s
+To change the rollout model, choose an OpenAI or OpenRouter model in the Beaker
+launch or pass `--model openai:gpt-6-sol` to the local command. A bare API ID such
+as `gpt-6-sol` means OpenAI. Without an override, `jobbench/protocol.json`'s
 `agent_model` is the default. The adapter records the actual selected model in
 the saved protocol and traces; it does not require a particular GPT version.
-The TypeScript runner currently supports the OpenAI provider only.
+The TypeScript runner supports the OpenAI and OpenRouter providers only.
 
 When scoring an existing local run, its recorded rollout model is retained even
 if the default has since changed. An explicit `--model` must match that recorded
@@ -209,9 +210,8 @@ or provider credentials.
 
 `jobbench/judging.py` preserves the pinned upstream judge's prompts, image
 selection, and result layout, and adds `response_format: json_schema` with strict
-typed fields and an exact criterion count. It validates criterion indices and
-the relationship between individual verdicts and `rubric_passed` before accepting
-a result. Extraction, JSON recovery, rubric weights, and score aggregation still
+typed fields and an exact criterion count. It validates criterion indices before
+accepting a result and, like upstream, scores the rubric from `rubric_passed`. Extraction, JSON recovery, rubric weights, and score aggregation still
 use the upstream helpers.
 
 Rubrics run on at most ten worker threads and remain in their original order.
@@ -231,8 +231,9 @@ Every generation creates its own `workspace/task_folder/`, `workspace/output/`,
 that workspace as `cwd` and loads the current candidate's sources directly.
 Personal extensions and instructions do not influence this benchmark path.
 
-The child environment receives `OPENAI_API_KEY` and the existing provider-proxy
-settings, excluding judge and Beaker credentials. Hosted OpenAI requests use
+The child environment receives the selected provider's key (`OPENAI_API_KEY` or
+`OPENROUTER_API_KEY`) and the existing provider-proxy settings, excluding judge and
+Beaker credentials. Hosted OpenAI and OpenRouter requests use
 Beaker's existing provider proxy without an additional integration relay.
 Generation has no task-level filesystem or network sandbox: normal process
 permissions determine access outside the workspace. The workspace and prompt

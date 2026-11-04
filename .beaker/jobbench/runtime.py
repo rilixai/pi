@@ -68,7 +68,7 @@ async def setup_command(command: list[str], *, root: Path, env: dict[str, str], 
 async def prepare_checkout(root: Path, *, run_dir: Path, env: dict[str, str]) -> None:
     """Install dependencies in the candidate tree; Beaker omits node_modules when copying it."""
     # Setup needs registry/catalog access, but never receives the candidate provider key.
-    setup_env = {key: value for key, value in env.items() if key != "OPENAI_API_KEY"}
+    setup_env = {key: value for key, value in env.items() if key not in ("OPENAI_API_KEY", "OPENROUTER_API_KEY")}
     # Multiple rollout processes can share a candidate tree. npm ci does not
     # modify this lockfile, so its inode remains stable while setup is serialized.
     with (root / "package-lock.json").open("rb") as lock:

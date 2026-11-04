@@ -15,14 +15,14 @@ from jobbench.scoring import score_async
 
 
 async def run_case(*, case_input: JsonValue, runtime: RolloutRuntime) -> CaseResult:
-    model_id = rollout_model(runtime.model)
+    provider, model_id = rollout_model(runtime.model)
     task = TaskInput.model_validate(case_input)
     # Repository evaluators set cwd to the candidate tree. Never fall back to a seed install.
     root = Path.cwd()
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-rollout-") as temporary:
-        with runtime.trace.stage("pi.jobbench", inputs={"task": task.task, "model": f"openai:{model_id}"}) as stage:
+        with runtime.trace.stage("pi.jobbench", inputs={"task": task.task, "model": f"{provider}:{model_id}"}) as stage:
             observed = await run_task(
-                task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary), model=model_id,
+                task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary), model=f"{provider}:{model_id}",
             )
             trace_session(runtime.trace, observed["messages"])
             manifest = [{key: value for key, value in item.items() if key != "content_base64"} for item in observed["files"]]

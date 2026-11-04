@@ -10,9 +10,13 @@ import { DefaultResourceLoader } from "../core/resource-loader.ts";
 import { createAgentSession } from "../core/sdk.ts";
 import { SettingsManager } from "../core/settings-manager.ts";
 
+export type LocalRunProvider = "openai" | "openrouter";
+
 export interface LocalRunRequest {
 	prompt: string;
 	cwd: string;
+	/** Defaults to OpenAI. */
+	provider?: LocalRunProvider;
 	model: string;
 	skillPaths?: string[];
 	appendSystemPrompt?: string;
@@ -22,7 +26,7 @@ export interface LocalRunResult {
 	response: string;
 	messages: AgentMessage[];
 	stats: SessionStats;
-	provider: "openai";
+	provider: LocalRunProvider;
 	model: string;
 	cwd: string;
 }
@@ -45,6 +49,9 @@ export function parseLocalRunRequest(input: unknown): LocalRunRequest {
 	) {
 		throw new TypeError("skillPaths must be an array of nonempty paths.");
 	}
+	if (value.provider !== undefined && value.provider !== "openai" && value.provider !== "openrouter") {
+		throw new TypeError("provider must be openai or openrouter.");
+	}
 	if (value.appendSystemPrompt !== undefined && typeof value.appendSystemPrompt !== "string") {
 		throw new TypeError("appendSystemPrompt must be a string.");
 	}
@@ -62,8 +69,9 @@ export async function runLocalAgent(
 ): Promise<LocalRunResult> {
 	signal.throwIfAborted();
 	if (!(await stat(request.cwd)).isDirectory()) throw new TypeError("cwd must be an existing directory.");
-	const model = modelRuntime.getModel("openai", request.model);
-	if (!model) throw new Error(`OpenAI model not found in Pi's catalog: ${request.model}`);
+	const provider = request.provider ?? "openai";
+	const model = modelRuntime.getModel(provider, request.model);
+	if (!model) throw new Error(`${provider} model not found in Pi's catalog: ${request.model}`);
 	const agentDir = getAgentDir();
 	const settingsManager = SettingsManager.create(request.cwd, agentDir);
 	const appendSystemPrompt = request.appendSystemPrompt;
@@ -109,7 +117,7 @@ export async function runLocalAgent(
 			response: session.getLastAssistantText() ?? "",
 			messages: session.messages,
 			stats: session.getSessionStats(),
-			provider: "openai",
+			provider,
 			model: model.id,
 			cwd: request.cwd,
 		};

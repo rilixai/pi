@@ -20,7 +20,7 @@ async def main() -> None:
     parser.add_argument("--task", required=True, help="JobBench task path, for example occupation/task1")
     parser.add_argument("--run-dir", type=Path, required=True, help="A new directory to retain all outputs")
     parser.add_argument("--phase", choices=("generate", "score", "all"), default="all")
-    parser.add_argument("--model", help="OpenAI model ID; defaults to protocol.json agent_model for generation")
+    parser.add_argument("--model", help="openai: or openrouter: model ID; defaults to protocol.json agent_model for generation")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     selected = rows([args.task])[0]
@@ -35,9 +35,8 @@ async def main() -> None:
     else:
         result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
         saved_model = result["protocol"].get("agent_model")
-        expected_protocol = {
-            **PROTOCOL, "agent_model": f"openai:{rollout_model(args.model if args.model is not None else saved_model)}",
-        }
+        provider, model_id = rollout_model(args.model if args.model is not None else saved_model)
+        expected_protocol = {**PROTOCOL, "agent_model": f"{provider}:{model_id}"}
         # Re-score the same deliverables with the current judge, while retaining
         # their original rollout model and checking the benchmark configuration.
         saved_protocol = {key: value for key, value in result["protocol"].items() if key != "scorer_model"}

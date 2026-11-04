@@ -22,12 +22,14 @@ try {
 	for await (const chunk of process.stdin) input += chunk;
 	const request = parseLocalRunRequest(JSON.parse(input));
 	process.chdir(request.cwd);
-	const apiKey = process.env.OPENAI_API_KEY;
-	if (!apiKey?.trim()) throw new Error("OPENAI_API_KEY is required for local OpenAI runs.");
+	const provider = request.provider ?? "openai";
+	const keyName = provider === "openrouter" ? "OPENROUTER_API_KEY" : "OPENAI_API_KEY";
+	const apiKey = process.env[keyName];
+	if (!apiKey?.trim()) throw new Error(`${keyName} is required for local ${provider} runs.`);
 	configureHttpDispatcher();
 	const modelRuntime = await ModelRuntime.create({ refreshOnCreate: false, signal: controller.signal });
 	// Select API-key authentication even if the user's Pi config has a subscription login.
-	await modelRuntime.setRuntimeApiKey("openai", apiKey, { signal: controller.signal });
+	await modelRuntime.setRuntimeApiKey(provider, apiKey, { signal: controller.signal });
 	const result = await runLocalAgent(request, modelRuntime, controller.signal);
 	writeRawStdout(`${JSON.stringify({ ok: true, result })}\n`);
 } catch (error) {

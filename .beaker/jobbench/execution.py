@@ -21,26 +21,30 @@ from .runtime import NODE, log_tail, prepare_checkout, stop_process
 MAX_DELIVERABLE_BYTES = 6 * 1024 * 1024 - 128 * 1024
 
 
-def rollout_model(model: str | None = None) -> str:
-    """Resolve an OpenAI API model ID from the launch override or protocol default."""
+PROVIDER_KEYS = {"openai": "OPENAI_API_KEY", "openrouter": "OPENROUTER_API_KEY"}
+
+
+def rollout_model(model: str | None = None) -> tuple[str, str]:
+    """Resolve the provider and model ID from the launch override or protocol default."""
     selected = PROTOCOL["agent_model"] if model is None else model
     provider, separator, model_id = selected.strip().partition(":")
     if not separator:
         provider, model_id = "openai", provider
-    if provider != "openai" or not model_id.strip():
-        raise ValueError("Pi JobBench rollouts require an OpenAI model ID, optionally prefixed with openai:")
-    return model_id.strip()
+    if provider not in PROVIDER_KEYS or not model_id.strip():
+        raise ValueError("Pi JobBench rollouts require an openai: or openrouter: model ID; a bare ID means OpenAI")
+    return provider, model_id.strip()
 
 
 async def run_task(
     task: TaskInput, *, inputs: Path, root: Path, run_dir: Path, model: str | None = None,
 ) -> dict[str, Any]:
-    """Run the selected OpenAI model and retain files outside the source tree."""
-    model_id = rollout_model(model)
+    """Run the selected model and retain files outside the source tree."""
+    provider, model_id = rollout_model(model)
+    key_name = PROVIDER_KEYS[provider]
     if os.name != "posix":
         raise RuntimeError("The local JobBench evaluator currently requires Linux or macOS")
-    if not os.environ.get("OPENAI_API_KEY", "").strip():
-        raise RuntimeError("OPENAI_API_KEY is required for local candidate execution")
+    if not os.environ.get(key_name, "").strip():
+        raise RuntimeError(f"{key_name} is required for local candidate execution")
     entry_dir = root / "packages/coding-agent/src/experimental"
     if not (entry_dir / "local-runner-cli.ts").is_file():
         raise RuntimeError(f"No candidate Pi source checkout at {root}")
@@ -56,7 +60,7 @@ async def run_task(
     }), encoding="utf-8")
     # Separate configuration and sessions, without imposing a filesystem sandbox.
     allowed = {
-        "PATH", "LANG", "LC_ALL", "TMPDIR", "OPENAI_API_KEY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+        "PATH", "LANG", "LC_ALL", "TMPDIR", key_name, "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
         "http_proxy", "https_proxy", "no_proxy", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS",
         "SYSTEMROOT", "SystemRoot",
     }
@@ -71,7 +75,7 @@ async def run_task(
         "use appropriate tools or write code to inspect them. Explain conflicting sources.\n\n"
         "Task instructions:\n" + task.instructions
     )
-    request = {"cwd": str(workspace), "prompt": prompt, "model": model_id}
+    request = {"cwd": str(workspace), "prompt": prompt, "provider": provider, "model": model_id}
     with (run_dir / "pi.stderr.log").open("wb") as stderr:
         process = await asyncio.create_subprocess_exec(
             str(NODE), "--import", (entry_dir / "source-resolver.ts").as_uri(),
@@ -98,13 +102,13 @@ async def run_task(
                 detail = str(failed["error"].get("message") or detail)
         except (ValueError, UnicodeDecodeError):
             pass
-        detail = detail.replace(env["OPENAI_API_KEY"], "[REDACTED]")
+        detail = detail.replace(env[key_name], "[REDACTED]")
         raise RuntimeError(f"Pi exited with code {returncode}: {detail[-4000:] or 'No diagnostics emitted'}")
     envelope = json.loads(stdout)
     if envelope.get("ok") is not True:
         raise RuntimeError(f"Pi runner failed: {envelope.get('error')}")
     result = envelope["result"]
-    if result["model"] != model_id or result["provider"] != "openai":
+    if result["model"] != model_id or result["provider"] != provider:
         raise RuntimeError("Pi returned a different provider or model than requested")
     packed = []
     total = 0
@@ -126,7 +130,7 @@ async def run_task(
         })
     observed = {
         "task": task.task, "response": result["response"], "messages": result["messages"], "files": packed,
-        "stats": result["stats"], "protocol": {**PROTOCOL, "agent_model": f"openai:{model_id}"},
+        "stats": result["stats"], "protocol": {**PROTOCOL, "agent_model": f"{provider}:{model_id}"},
     }
     (run_dir / "result.json").write_text(json.dumps(observed), encoding="utf-8")
     return observed
