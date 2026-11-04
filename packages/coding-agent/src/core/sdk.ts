@@ -17,13 +17,7 @@ import { ModelRuntime } from "./model-runtime.ts";
 import type { ResourceLoader } from "./resource-loader.ts";
 import { DefaultResourceLoader } from "./resource-loader.ts";
 import { getDefaultSessionDir, SessionManager } from "./session-manager.ts";
-import {
-	applyToolModifiers,
-	DEFAULT_TOOL_NAMES,
-	getToolListError,
-	isToolModifier,
-	SettingsManager,
-} from "./settings-manager.ts";
+import { applyToolModifiers, getToolListError, isToolModifier, SettingsManager } from "./settings-manager.ts";
 import { time } from "./timings.ts";
 import {
 	createBashTool,
@@ -36,6 +30,7 @@ import {
 	createReadOnlyTools,
 	createReadTool,
 	createWriteTool,
+	DEFAULT_TOOL_NAMES,
 	withFileMutationQueue,
 } from "./tools/index.ts";
 import { getBranchSelection } from "./virtual-models.ts";

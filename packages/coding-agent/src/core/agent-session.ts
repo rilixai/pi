@@ -131,12 +131,7 @@ import {
 	SessionManager,
 	type SessionProjection,
 } from "./session-manager.ts";
-import {
-	applyToolModifiers,
-	type CacheWarmingMode,
-	DEFAULT_TOOL_NAMES,
-	type SettingsManager,
-} from "./settings-manager.ts";
+import { applyToolModifiers, type CacheWarmingMode, type SettingsManager } from "./settings-manager.ts";
 import type { SlashCommandInfo } from "./slash-commands.ts";
 import { BUILTIN_PATH_PREFIX, createSyntheticSourceInfo, isSyntheticPath, type SourceInfo } from "./source-info.ts";
 import {
@@ -147,7 +142,7 @@ import {
 	normalizeBuildSystemPromptOptions,
 } from "./system-prompt.ts";
 import { type BashOperations, createLocalBashOperations } from "./tools/bash.ts";
-import { createAllToolDefinitions } from "./tools/index.ts";
+import { createAllToolDefinitions, DEFAULT_TOOL_NAMES } from "./tools/index.ts";
 import { createToolDefinitionFromAgentTool } from "./tools/tool-definition-wrapper.ts";
 import { addUsageToTotals, combineUsage, createUsageTotals } from "./usage-totals.ts";
 import {

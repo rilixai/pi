@@ -104,6 +104,9 @@ export const allToolNames: Set<ToolName> = new Set([
 	"ls",
 ]);
 
+/** Tools enabled at startup when `defaultTools` does not change them. */
+export const DEFAULT_TOOL_NAMES: readonly string[] = ["read", "bash", "edit", "write"];
+
 export interface ToolsOptions {
 	read?: ReadToolOptions;
 	bash?: BashToolOptions;

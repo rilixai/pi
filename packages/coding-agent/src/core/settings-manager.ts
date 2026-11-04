@@ -25,6 +25,7 @@ import type {
 	TuiMode,
 	WarningSettings,
 } from "./settings-schema.ts";
+import { DEFAULT_TOOL_NAMES } from "./tools/index.ts";
 
 export type {
 	BranchSummarySettings,
@@ -80,9 +81,6 @@ function deepMergeObjects(base: Record<string, unknown>, overrides: Record<strin
 
 	return result;
 }
-
-/** Tools enabled at startup when `defaultTools` does not change them. */
-export const DEFAULT_TOOL_NAMES: readonly string[] = ["read", "bash", "edit", "write"];
 
 /** Whether a tool selection entry is a `+name` or `-name` modifier. */
 export function isToolModifier(entry: unknown): boolean {
