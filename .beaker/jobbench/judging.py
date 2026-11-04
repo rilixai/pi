@@ -11,8 +11,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from openai import APIConnectionError, APIResponseValidationError, APIStatusError, OpenAI, omit
-from openai.types.chat import ChatCompletionContentPartParam, ChatCompletionMessageParam
+import httpx
+from openai import APIError, APIStatusError, OpenAI, Stream, omit
+from openai.types.chat import ChatCompletionChunk, ChatCompletionContentPartParam, ChatCompletionMessageParam
 from openai.types.shared_params import ResponseFormatJSONSchema
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -65,20 +66,22 @@ def judge_rubric(
     with OpenAI(base_url=api_base, api_key=api_key, max_retries=0, timeout=JUDGE_REQUEST_TIMEOUT_SECONDS) as client:
         for attempt in range(1, MAX_JUDGE_ATTEMPTS + 1):
             try:
-                response = client.chat.completions.create(
+                stream = client.chat.completions.create(
                     model=model, messages=messages, response_format=response_format,
                     max_completion_tokens=MAX_JUDGE_COMPLETION_TOKENS,
                     # Gemini 3 recommends default sampling; retain upstream sampling for other models.
                     temperature=omit if model.rsplit("/", 1)[-1].split(":", 1)[-1].startswith("gemini-3") else 0.0,
+                    # Beaker's gateway cuts a buffered reply at 280 s; a stream gets keep-alives and 870 s.
+                    stream=True,
                 )
-                if not response.choices:
-                    raise InvalidJudgeResponse("The judge returned no completion choices")
-                choice = response.choices[0]
-                if choice.finish_reason != "stop":
-                    raise InvalidJudgeResponse(f"Incomplete judge response: finish_reason={choice.finish_reason}")
-                if choice.message.refusal or not choice.message.content:
+                finish_reason, content, refusal = read_stream(stream)
+                if finish_reason is None:
+                    raise InvalidJudgeResponse("The judge stream ended without a finish reason")
+                if finish_reason != "stop":
+                    raise InvalidJudgeResponse(f"Incomplete judge response: finish_reason={finish_reason}")
+                if refusal or not content:
                     raise InvalidJudgeResponse("The judge refused or returned an empty response")
-                judgment = validate_judgment(choice.message.content, len(rubric.criterion))
+                judgment = validate_judgment(content, len(rubric.criterion))
                 return {
                     "index": index, "rubric": rubric.rubric, "weight": rubric.weight,
                     "result": {
@@ -98,7 +101,8 @@ def judge_rubric(
                 if error.status_code not in (408, 409, 429) and error.status_code < 500:
                     raise RuntimeError(f"JobBench judge failed on rubric {index}: HTTP {error.status_code}: {error}") from error
                 last_error = error
-            except (APIConnectionError, APIResponseValidationError, InvalidJudgeResponse) as error:
+            # APIError also covers an error event sent after the stream started.
+            except (APIError, httpx.TransportError, InvalidJudgeResponse) as error:
                 last_error = error
             if attempt < MAX_JUDGE_ATTEMPTS:
                 time.sleep(JUDGE_RETRY_DELAY_SECONDS)
@@ -107,6 +111,22 @@ def judge_rubric(
     else:
         message = f"JobBench judge failed on rubric {index}"
     raise RuntimeError(f"{message} after {MAX_JUDGE_ATTEMPTS} attempts: {last_error}") from last_error
+
+
+def read_stream(stream: Stream[ChatCompletionChunk]) -> tuple[str | None, str, str]:
+    """Join the first choice's streamed content and refusal, keeping its finish reason."""
+    finish_reason: str | None = None
+    content: list[str] = []
+    refusal: list[str] = []
+    with stream:
+        for chunk in stream:
+            for choice in chunk.choices:
+                if choice.index != 0:
+                    continue
+                content.append(choice.delta.content or "")
+                refusal.append(choice.delta.refusal or "")
+                finish_reason = choice.finish_reason or finish_reason
+    return finish_reason, "".join(content), "".join(refusal)
 
 
 def rubric_response_format(criterion_count: int) -> ResponseFormatJSONSchema:
