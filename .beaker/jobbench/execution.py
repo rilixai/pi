@@ -68,13 +68,26 @@ async def run_task(
     env["PATH"] = os.pathsep.join((str(NODE.parent), str(Path(sys.executable).parent), env.get("PATH", os.defpath)))
     env.update(HOME=str(run_dir / "home"), PI_CODING_AGENT_DIR=str(agent_dir))
     await prepare_checkout(root, run_dir=run_dir, env=env)
-    prompt = (
-        "Read task_folder/TASK_INSTRUCTIONS.txt and the reference files under task_folder/. "
-        "Complete that task. Save only final deliverables under output/. "
-        "Do not access files outside this workspace. For Office files, PDFs, images, or databases, "
-        "use appropriate tools or write code to inspect them. Explain conflicting sources.\n\n"
-        "Task instructions:\n" + task.instructions
-    )
+    # Verbatim prompt of upstream eval/run_benchmark_{codex_cli,claude_code_cli,opencode}.sh.
+    task_folder, output = workspace / "task_folder", workspace / "output"
+    prompt = f"""=== TASK FOLDER ===
+{task_folder}
+
+=== INSTRUCTIONS ===
+1. Read the TASK_INSTRUCTIONS.txt file in the task folder above
+2. Based on the Reference Files section in TASK_INSTRUCTIONS.txt, read the corresponding files from the same task folder using appropriate tools.
+3. Complete the task as specified in TASK_INSTRUCTIONS.txt
+4. Only save the final deliverables to the output directory specified below. Do not save any intermediate or temporary files.
+
+=== OUTPUT DIRECTORY ===
+{output}
+
+IMPORTANT:
+- All reference files are in the task folder: {task_folder}
+- Only save the final deliverables to the output directory {output}. Do not save any intermediate or temporary files.
+- You MUST only access files within {workspace} or search online for new reference files if you find needed. Do NOT access any files or directories in this system outside of this path.
+- If you encounter ambiguous or conflicting information, analyze the conflict, explain your reasoning, and justify the approach you choose.
+- If a file cannot be read directly (e.g., .xlsx, .docx, .db, .pptx), use appropriate tools, MCP servers, or code to extract and process its contents."""
     request = {"cwd": str(workspace), "prompt": prompt, "provider": provider, "model": model_id}
     with (run_dir / "pi.stderr.log").open("wb") as stderr:
         process = await asyncio.create_subprocess_exec(

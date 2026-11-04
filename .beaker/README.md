@@ -42,7 +42,8 @@ During case preparation it downloads the original file and the other files under
 that task's `task_folder/`, verifies their sizes and hashes, and attaches them as
 case files. The adapter copies those files into the task workspace, where Pi
 reads `task_folder/TASK_INSTRUCTIONS.txt` and adjacent reference paths.
-The instructions are also included in Pi's input prompt. `RUBRICS.json` stays with
+Pi's input prompt is the upstream runners' prompt verbatim, with absolute workspace
+paths; like upstream, it points to the instructions file instead of inlining it. `RUBRICS.json` stays with
 the evaluator and is not copied into Pi's workspace. Local evaluation retains the
 downloaded instructions at `<run-dir>/workspace/task_folder/TASK_INSTRUCTIONS.txt`;
 hosted workspaces are temporary.
