@@ -46,7 +46,9 @@ async def stop_process(process: asyncio.subprocess.Process) -> None:
     await process.wait()
 
 
-async def setup_command(command: list[str], *, root: Path, env: dict[str, str], log: Path) -> None:
+async def setup_command(
+    command: list[str], *, root: Path, env: dict[str, str], log: Path, timeout_seconds: int = 600
+) -> None:
     """Run bounded setup without lifecycle hooks or model calls."""
     with log.open("wb") as output:
         process = await asyncio.create_subprocess_exec(
@@ -54,10 +56,10 @@ async def setup_command(command: list[str], *, root: Path, env: dict[str, str], 
             start_new_session=True,
         )
         try:
-            await asyncio.wait_for(process.wait(), timeout=600)
+            await asyncio.wait_for(process.wait(), timeout=timeout_seconds)
         except TimeoutError as error:
             await stop_process(process)
-            raise RuntimeError(f"Pi setup exceeded 600 seconds ({log.name}): {log_tail(log)}") from error
+            raise RuntimeError(f"Pi setup exceeded {timeout_seconds} seconds ({log.name}): {log_tail(log)}") from error
         except BaseException:
             await stop_process(process)
             raise

@@ -89,6 +89,9 @@ async def calculator_runtime() -> AsyncIterator[None]:
                         # image build uses host networking; calculations remain offline.
                         ["docker", "build", "--network=host", "-t", image_name(), str(RUNTIME.parent)],
                         root=RUNTIME.parent, env=env, log=directory / "image-build.log",
+                        # Every run rebuilds from the dated Ubuntu snapshot mirror, whose
+                        # throughput varies; 600 s was exceeded on a slow day.
+                        timeout_seconds=1800,
                     )
                 # Verify real recalculation through the official bounded worker,
                 # before any paid candidate or judge calls can be made.
