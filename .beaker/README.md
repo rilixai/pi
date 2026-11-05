@@ -18,7 +18,7 @@ setting, used by both hosted and local scoring:
 - Dataset: `JobBench/job-bench@d43a66575635da0d3f6cb9a20976dc1a60f3ffc9`.
 - Evaluator: `Job-Bench/job-bench-eval@660b33a86ed032559df0b2fdc1ad38cf7ceb83f3`.
 - Default Pi model: `openai:gpt-6-luna`, overridable per launch; thinking level
-  `high`, 1750-second wall-clock budget (under Beaker's 1800-second case limit).
+  `high`, 3599-second wall-clock budget (under Beaker's 3600-second case limit).
 - Judge: `openai:gpt-6-luna`, set independently of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
