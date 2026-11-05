@@ -38,8 +38,13 @@ def trace_session(trace: Trace, messages: list[dict[str, Any]]) -> None:
     """Replay Pi's session as one model call per assistant turn, each followed by the tools it ran."""
     results = {message["toolCallId"]: message for message in messages if message.get("role") == "toolResult"}
     inputs: list[Any] = []
+    leading_system = True
     for message in messages:
         role = message.get("role")
+        if role == "system":
+            inputs.append({"role": "system", "content": _system_text(message, leading=leading_system)})
+            leading_system = False
+            continue
         if role == "toolResult":
             # The result itself is the output of its tool span; the next model call only references it.
             inputs.append({"role": "toolResult", "toolCallId": message["toolCallId"], "toolName": message["toolName"]})
@@ -76,6 +81,21 @@ def trace_session(trace: Trace, messages: list[dict[str, Any]]) -> None:
                 tool.output({"isError": result["isError"], "content": [_block(part) for part in result["content"]]})
                 if result.get("durationMs") is not None:
                     tool.attribute("pi.duration_ms", result["durationMs"])
+
+
+def _system_text(message: dict[str, Any], *, leading: bool) -> str:
+    """Render a system message as the provider receives it; Pi keeps the prompt in named sections, not `content`."""
+    content = message.get("content") or ""
+    parts = [content if isinstance(content, str) else "\n".join(p["text"] for p in content if p.get("type") == "text")]
+    for name, value in (message.get("sections") or {}).items():
+        # Mirrors getSystemMessageText for the leading prompt and renderSystemMessageUpdate for later patches.
+        if leading:
+            parts.append(value or "")
+        elif value is None:
+            parts.append(f'Removed system prompt section "{name}".')
+        else:
+            parts.append(f'Updated system prompt section "{name}":\n\n{value}')
+    return "\n\n".join(part for part in parts if part)
 
 
 def _content_message(message: dict[str, Any]) -> dict[str, Any]:
