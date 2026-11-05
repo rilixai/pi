@@ -22,9 +22,15 @@ setting, used by both hosted and local scoring:
 - Judge: `openai:gpt-6-luna`, set independently of the Pi model. This uses
   JobBench's official rubric logic with a custom judge model; compare scores
   within the same judge configuration.
-- Objective: official per-task rubric-weighted score, normalized to `[0, 1]`.
-  The unweighted rubric pass rate is diagnostic only. Average task scores with
-  equal task weights when reporting a subset aggregate.
+- Objective: `0.5 * jobbench_weighted_score + 0.5 * criteria_pass_rate`.
+  - `jobbench_weighted_score` is JobBench's official per-task rubric-weighted
+    score, normalized to `[0, 1]`; compare this field with JobBench results.
+    A rubric earns its full weight only when every criterion passes, so a task
+    can score 0 while most criteria pass.
+  - `criteria_pass_rate` is the fraction of graded criteria that pass, excluding
+    criteria in zero-weight rubrics; it gives the optimizer a denser signal.
+  - The unweighted rubric pass rate (`rubric_pass_rate`) is diagnostic only.
+  Average task scores with equal task weights when reporting a subset aggregate.
 
 Task selection and train/test assignment belong to the supplied dataset, not
 the evaluation protocol. No task list or split size is fixed in this repository.

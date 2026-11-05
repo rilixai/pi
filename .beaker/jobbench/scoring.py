@@ -64,7 +64,7 @@ def score_submission(
     expected: Expected, files: list[dict[str, Any]], *, report_dir: Path | None = None,
     protocol: dict[str, Any] | None = None,
 ) -> CaseScore:
-    """Keep official rubric weighting; treat judge failures as failures, never zeros."""
+    """Blend official rubric weighting with the criteria pass rate; judge failures raise, never score zero."""
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-score-") as temporary:
         directory = Path(temporary)
         restore_submission(files, directory)
@@ -128,10 +128,15 @@ def score_submission(
             )
             for rubric in rubric_results for criterion in rubric["result"]["criteria_results"]
         )
+        graded = [check for check in checks if not check.informational]
+        criteria_pass_rate = round(sum(check.verdict == "pass" for check in graded) / len(graded), 4) if graded else 0.0
+        weighted_score = float(scorecard["normalized_score"])
+        # The official score is all-or-nothing per rubric; blending in the per-criterion rate densifies the signal.
         return CaseScore(
-            objective=float(scorecard["normalized_score"]),
+            objective=round(0.5 * weighted_score + 0.5 * criteria_pass_rate, 4),
             field_scores={
-                "jobbench_weighted_score": float(scorecard["normalized_score"]),
+                "jobbench_weighted_score": weighted_score,
+                "criteria_pass_rate": criteria_pass_rate,
                 "rubric_pass_rate": float(scorecard["pass_rate"]),
             },
             checks=checks,
