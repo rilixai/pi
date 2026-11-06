@@ -91,6 +91,12 @@ describe("isContextOverflow", () => {
 		expect(isContextOverflow(message, 131072)).toBe(true);
 	});
 
+	it("detects an output cap a gateway fitted below OpenAI's minimum", () => {
+		const errorMessage =
+			'OpenAI API error (400): {"message":"Invalid \'max_output_tokens\': integer below minimum value. Expected a value >= 16, but got 1 instead.","type":"invalid_request_error","param":"max_output_tokens","code":"integer_below_min_value"}';
+		expect(isContextOverflow(createErrorMessage(errorMessage, "openai"))).toBe(true);
+	});
+
 	it("detects LiteLLM pre-call ContextWindowExceededError", () => {
 		// Regression for #11492.
 		const message = createErrorMessage(

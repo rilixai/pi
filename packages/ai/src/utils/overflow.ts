@@ -44,6 +44,7 @@ const OVERFLOW_PATTERNS = [
 	/exceeds the context window/i, // OpenAI (Completions & Responses API)
 	/exceeds (?:the )?(?:model'?s )?maximum context length(?: of [\d,]+ tokens?|\s*\([\d,]+\))/i, // OpenAI-compatible proxies (LiteLLM)
 	/context window exceeded/i, // LiteLLM pre-call check (ContextWindowExceededError)
+	/'max_output_tokens': integer below minimum value/i, // OpenAI Responses, when a gateway fits its default output cap to a full window
 	/input token count.*exceeds the maximum/i, // Google (Gemini)
 	/maximum prompt length is \d+/i, // xAI (Grok)
 	/reduce the length of the messages/i, // Groq
