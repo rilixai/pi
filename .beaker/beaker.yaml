@@ -15,6 +15,7 @@ integrations:
     required_env: []
     environment_base: debian_slim:3.12
     apt_install:
+      - curl
       - docker.io
       - util-linux
       - tesseract-ocr

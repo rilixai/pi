@@ -102,7 +102,7 @@ evaluation error, not a score of zero. `JOBBENCH_CALC_NATIVE=1` is only suitable
 inside the exact upstream calculation image; it is not a generic LibreOffice
 fallback.
 
-Hosted setup installs `docker.io`, `util-linux`, and `tesseract-ocr` (for tasks with scanned
+Hosted setup installs `curl` (the task prompt allows online search), `docker.io`, `util-linux`, and `tesseract-ocr` (for tasks with scanned
 images) through `apt_install`. Before loading cases,
 `JobBenchSetup.prepare_run` connects to Docker or starts an attempt-owned daemon
 inside Beaker's Modal VM, builds the unchanged upstream calculator Dockerfile,
