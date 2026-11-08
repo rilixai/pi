@@ -253,7 +253,8 @@ does not build a Docker image or start a container for generation. Ordinary
 `scripts/pi_harness.py` behavior is unchanged.
 
 The run directory retains the deliverables, raw Pi transcript/result JSON,
-stderr diagnostics, and a rubric-level `score.json`. An empty submission is a
+stderr diagnostics, and a rubric-level `score.json` with the judge's extraction
+diagnostics. An empty submission is a
 normal zero. Provider, timeout, transport, malformed-judge, and infrastructure
 failures propagate as errors instead of being turned into incorrect answers.
 
@@ -265,6 +266,14 @@ sources in a Node subprocess, then transports binary deliverables in `CaseResult
 cleaning its workspace. The scorer does not depend on an evaluator-local path.
 The sample output contains the final response, file manifest, and native usage
 statistics. Passing and failing rubric criteria become `CaseScore.checks`.
+
+Before the workspace is deleted, including when Pi fails, a `pi.jobbench.workspace`
+trace stage records every file the agent wrote outside `task_folder/`
+(deliverables and `scratch/`): text files inline (up to 200,000 characters each),
+and every file as a trace artifact under its SHA-256, up to 16 MiB per rollout.
+The judge reads at most 200,000 extracted characters per file; a deliverable it
+saw only in part gets an informational `Judge input truncated` check, which does
+not change the score.
 
 - Binary submissions currently have an 11.9 MiB total limit, leaving room for base64
   encoding inside Beaker's 16 MiB result envelope. Exceeding this limit is an

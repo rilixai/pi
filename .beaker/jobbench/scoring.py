@@ -70,8 +70,8 @@ def score_submission(
         restore_submission(files, directory)
         selected_model = None
         rubric_results = []
+        extraction: dict[str, Any] = {}
         if files:
-            extraction: dict[str, Any] = {}
             text = official_judge.extract_all_file_contents(directory, extraction)
             images = official_judge.collect_image_attachments(directory)
             target = scoring_inference_target()
@@ -115,7 +115,7 @@ def score_submission(
             report_dir.mkdir(parents=True, exist_ok=True)
             (report_dir / "score.json").write_text(json.dumps({
                 "protocol": {**(PROTOCOL if protocol is None else protocol), "scorer_model": selected_model},
-                "scorecard": scorecard, "rubrics": rubric_results,
+                "scorecard": scorecard, "rubrics": rubric_results, "extraction": extraction,
             }, indent=2), encoding="utf-8")
         checks = tuple(
             Check(
@@ -128,6 +128,7 @@ def score_submission(
             )
             for rubric in rubric_results for criterion in rubric["result"]["criteria_results"]
         )
+        checks += judge_input_checks(extraction)
         graded = [check for check in checks if not check.informational]
         criteria_pass_rate = round(sum(check.verdict == "pass" for check in graded) / len(graded), 4) if graded else 0.0
         weighted_score = float(scorecard["normalized_score"])
@@ -141,6 +142,25 @@ def score_submission(
             },
             checks=checks,
         )
+
+
+def judge_input_checks(extraction: dict[str, Any]) -> tuple[Check, ...]:
+    """Flag deliverables the judge saw only in part; they are informational and never change the score."""
+    limit = official_judge.MAX_CHARS_PER_FILE
+    return tuple(
+        Check(
+            name=f"Judge input truncated: {record['path']}",
+            verdict="fail",
+            message=(
+                f"The judge saw the first {limit:,} of {record['characters']:,} extracted characters."
+                if record["characters"] > limit and not record["path"].lower().endswith(tuple(official_judge.SQLITE_EXTS))
+                else "Spreadsheet extraction truncated part of this file's text before judging."
+            ),
+            group="Judge input",
+            informational=True,
+        )
+        for record in extraction.get("files", []) if record.get("truncated")
+    )
 
 
 async def score_async(expected: Expected, files: list[dict[str, Any]]) -> CaseScore:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import mimetypes
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -21,9 +23,13 @@ async def run_case(*, case_input: JsonValue, runtime: RolloutRuntime) -> CaseRes
     root = Path.cwd()
     with tempfile.TemporaryDirectory(prefix="pi-jobbench-rollout-") as temporary:
         with runtime.trace.stage("pi.jobbench", inputs={"task": task.task, "model": f"{provider}:{model_id}"}) as stage:
-            observed = await run_task(
-                task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary), model=f"{provider}:{model_id}",
-            )
+            try:
+                observed = await run_task(
+                    task, inputs=runtime.case_files_dir, root=root, run_dir=Path(temporary), model=f"{provider}:{model_id}",
+                )
+            finally:
+                # The rollout directory is deleted on exit, so keep the agent's files, also when Pi failed.
+                record_workspace(runtime.trace, Path(temporary) / "workspace")
             trace_session(runtime.trace, observed["messages"])
             manifest = [{key: value for key, value in item.items() if key != "content_base64"} for item in observed["files"]]
             stage.output({"files": manifest, "stats": observed["stats"]})
@@ -32,6 +38,46 @@ async def run_case(*, case_input: JsonValue, runtime: RolloutRuntime) -> CaseRes
                 output_kind="record",
                 context={"files": observed["files"]},
             )
+
+
+WORKSPACE_TEXT_SUFFIXES = {".md", ".txt", ".csv", ".tsv", ".json", ".jsonl", ".yaml", ".yml", ".html", ".xml", ".py", ".log"}
+MAX_WORKSPACE_FILES = 200
+MAX_WORKSPACE_TEXT_CHARS = 200_000
+MAX_WORKSPACE_ARTIFACT_BYTES = 16 * 1024 * 1024
+
+
+def record_workspace(trace: Trace, workspace: Path) -> None:
+    """Archive what the agent wrote outside the task folder: deliverables, scratch notes and any other files.
+
+    Text files are inlined in the stage output so the proposer can read them as a trace step; every file is
+    also stored as an artifact under its SHA-256, within a per-rollout byte budget.
+    """
+    if not workspace.is_dir():
+        return
+    paths = [
+        path for path in sorted(workspace.rglob("*"))
+        if path.relative_to(workspace).parts[0] != "task_folder" and path.is_file() and not path.is_symlink()
+    ]
+    files: list[dict[str, Any]] = []
+    stored = 0
+    with trace.stage("pi.jobbench.workspace") as stage:
+        for path in paths[:MAX_WORKSPACE_FILES]:
+            name = path.relative_to(workspace).as_posix()
+            content = path.read_bytes()
+            entry: dict[str, Any] = {"path": name, "size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+            if path.suffix.lower() in WORKSPACE_TEXT_SUFFIXES:
+                text = content.decode("utf-8", errors="replace")
+                entry["text"] = text[:MAX_WORKSPACE_TEXT_CHARS]
+                if len(text) > MAX_WORKSPACE_TEXT_CHARS:
+                    entry["text_truncated_at"] = MAX_WORKSPACE_TEXT_CHARS
+            if stored + len(content) <= MAX_WORKSPACE_ARTIFACT_BYTES:
+                media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+                trace.artifact(name, content, media_type=media_type, filename=name)
+                stored += len(content)
+            else:
+                entry["artifact"] = "omitted: rollout artifact budget exhausted"
+            files.append(entry)
+        stage.output({"files": files, "omitted_files": [p.relative_to(workspace).as_posix() for p in paths[MAX_WORKSPACE_FILES:]]})
 
 
 def trace_session(trace: Trace, messages: list[dict[str, Any]]) -> None:
