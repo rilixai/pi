@@ -304,7 +304,7 @@ changes but retains upstream request/error handling. Use `.beaker/evaluate.py`
 or the Beaker scorer for the context guard and strict evaluation path.
 
 - Binary submissions currently have a 23.9 MiB total limit, leaving room for base64
-  encoding inside Beaker's 32 MiB result envelope (beaker-runtime 0.3.27 or later).
+  encoding inside Beaker's 32 MiB result envelope (beaker-runtime 0.3.33 or later).
   Exceeding this limit is an explicit transport failure; submissions are never
   silently truncated.
 - Evaluation configuration selects the model, thinking level, and timeout.
